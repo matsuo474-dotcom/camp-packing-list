@@ -61,8 +61,8 @@
   <div class="sub">家族みんなで同じリストを見て、チェックがその場で共有されます</div>
 </header>
 <main>
-  <!-- 合言葉ゲート -->
-  <section id="roomGate" class="card">
+  <!-- 合言葉ゲート（現在は未使用：リンクを開けばそのまま使える） -->
+  <section id="roomGate" class="card hidden">
     <label for="roomCodeInput">合言葉（部屋コード）</label>
     <input type="text" id="roomCodeInput" placeholder="例： matsuo-camp" autocomplete="off">
     <div style="height:10px"></div>
@@ -79,8 +79,7 @@
   <section id="appMain" class="hidden">
     <div class="card">
       <div class="roomline">
-        <span style="font-size:13px; color:var(--muted)">合言葉</span>
-        <span class="roomcode" id="roomCodeLabel"></span>
+        <span style="font-size:14px; font-weight:700">家族の持ち物リスト</span>
         <span class="conn" id="connStatus"><span class="dot"></span><span id="connText">接続中…</span></span>
       </div>
       <div class="progress-wrap">
@@ -88,10 +87,7 @@
         <div class="progress-text" id="progressText">0 / 0 個チェック済み</div>
       </div>
       <div style="height:8px"></div>
-      <div class="row">
-        <button id="shareBtn" class="btn-accent">共有リンクをコピー</button>
-        <button id="leaveBtn" class="btn-sub">合言葉を変える</button>
-      </div>
+      <button id="shareBtn" class="btn-accent" style="width:100%">共有リンクをコピー</button>
     </div>
 
     <div class="card">
@@ -118,7 +114,7 @@
   </section>
 </main>
 <footer>
-  チェックや追加は、同じ合言葉で開いている全員の画面にリアルタイムで反映されます。リンクと合言葉を知っている人は誰でもリストを見たり編集したりできるので、家族の外には広めないでください。
+  チェックや追加は、このリンクを開いている全員の画面にリアルタイムで反映されます。リンクを知っている人は誰でもリストを見たり編集したりできます。
 </footer>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
@@ -165,7 +161,7 @@ var localMode = false;
 var $ = function (id) { return document.getElementById(id); };
 var roomGate = $("roomGate"), appMain = $("appMain");
 var roomCodeInput = $("roomCodeInput"), gateMsg = $("gateMsg");
-var roomCodeLabel = $("roomCodeLabel"), connStatus = $("connStatus"), connText = $("connText");
+var connStatus = $("connStatus"), connText = $("connText");
 var progressFill = $("progressFill"), progressText = $("progressText");
 var addName = $("addName"), addCat = $("addCat"), addMsg = $("addMsg");
 var listWrap = $("listWrap");
@@ -273,7 +269,6 @@ function addPresets() {
 function enterRoom(code, isNew) {
   roomCode = code;
   try { localStorage.setItem(LS_ROOM, code); } catch (e) {}
-  roomCodeLabel.textContent = code;
   roomGate.classList.add("hidden");
   appMain.classList.remove("hidden");
   items = {};
@@ -302,14 +297,7 @@ function enterRoom(code, isNew) {
     });
   }
 }
-function leaveRoom() {
-  if (itemsRef) { itemsRef.off(); itemsRef = null; }
-  roomCode = null; items = {};
-  try { localStorage.removeItem(LS_ROOM); } catch (e) {}
-  appMain.classList.add("hidden");
-  roomGate.classList.remove("hidden");
-  roomCodeInput.value = "";
-}
+
 
 /* ===== イベント ===== */
 $("joinRoomBtn").addEventListener("click", function () {
@@ -323,10 +311,9 @@ $("createRoomBtn").addEventListener("click", function () {
   enterRoom(genRoomCode(), true);
 });
 roomCodeInput.addEventListener("keydown", function (e) { if (e.key === "Enter") $("joinRoomBtn").click(); });
-$("leaveBtn").addEventListener("click", leaveRoom);
 $("shareBtn").addEventListener("click", function () {
-  var url = location.origin + location.pathname + "?room=" + encodeURIComponent(roomCode);
-  var text = "キャンプ持ち物チェック（合言葉： " + roomCode + "）\n" + url;
+  var url = location.origin + location.pathname;
+  var text = "キャンプ持ち物チェック\n" + url;
   function done() { $("shareBtn").textContent = "コピーしました ✓"; setTimeout(function () { $("shareBtn").textContent = "共有リンクをコピー"; }, 2000); }
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(done, function () { window.prompt("このリンクを家族に送ってください", url); });
@@ -364,12 +351,13 @@ $("clearAllBtn").addEventListener("click", function () {
   else if (itemsRef) { itemsRef.remove(); }
 });
 
-/* ===== 起動： URLの ?room= か、前回の合言葉で自動入室 ===== */
+/* ===== 起動： 家族のリストに自動入室（合言葉なし） ===== */
+var DEFAULT_ROOM = "camp-vv2ru9wh";
 (function init() {
   var m = /[?&]room=([^&]+)/.exec(location.search || "");
-  var code = m ? decodeURIComponent(m[1]) : null;
-  if (!code) { try { code = localStorage.getItem(LS_ROOM); } catch (e) {} }
+  var code = m ? decodeURIComponent(m[1]) : DEFAULT_ROOM;
   if (code && validRoomCode(code)) enterRoom(code, false);
+  else enterRoom(DEFAULT_ROOM, false);
 })();
 </script>
 </body>
