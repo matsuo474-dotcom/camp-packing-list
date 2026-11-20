@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>キャンプ持ち物チェック</title>
+<style>
+  :root{
+    --green:#2e7d4f; --green-dark:#1f5c39; --bg:#f4f7f2; --card:#ffffff;
+    --text:#22301f; --muted:#6b7a68; --line:#dfe7dc; --accent:#e8862e;
+    --danger:#c0453e;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; font-family:"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif; background:var(--bg); color:var(--text);}
+  header{background:var(--green); color:#fff; padding:14px 16px; position:sticky; top:0; z-index:10;}
+  header h1{margin:0; font-size:19px; font-weight:700;}
+  header .sub{font-size:12px; opacity:.85; margin-top:2px;}
+  main{max-width:640px; margin:0 auto; padding:14px 12px 40px;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:12px;}
+  .hidden{display:none !important;}
+  label{font-size:13px; color:var(--muted); display:block; margin-bottom:6px;}
+  input[type=text]{width:100%; padding:11px 12px; font-size:16px; border:1px solid var(--line); border-radius:9px; background:#fff; color:var(--text);}
+  select{padding:11px 10px; font-size:15px; border:1px solid var(--line); border-radius:9px; background:#fff; color:var(--text);}
+  button{border:none; border-radius:9px; padding:11px 14px; font-size:15px; font-weight:600; cursor:pointer;}
+  .btn-primary{background:var(--green); color:#fff; width:100%;}
+  .btn-primary:active{background:var(--green-dark);}
+  .btn-sub{background:#eef3ec; color:var(--green-dark); border:1px solid var(--line);}
+  .btn-accent{background:var(--accent); color:#fff;}
+  .btn-danger{background:#fff; color:var(--danger); border:1px solid var(--line);}
+  .row{display:flex; gap:8px;}
+  .row > *{flex:1;}
+  .msg{font-size:13px; color:var(--danger); min-height:18px; margin-top:8px;}
+  .note{font-size:12.5px; color:var(--muted); line-height:1.6;}
+  .progress-wrap{margin:4px 0 2px;}
+  .progress-bar{height:10px; background:#e4ece2; border-radius:99px; overflow:hidden;}
+  .progress-fill{height:100%; background:var(--green); width:0%; transition:width .25s;}
+  .progress-text{font-size:13px; color:var(--muted); margin-top:6px;}
+  .roomline{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .roomcode{font-weight:700; font-size:16px; background:#eef3ec; border:1px dashed var(--green); color:var(--green-dark); padding:5px 10px; border-radius:8px; letter-spacing:.04em;}
+  .conn{font-size:12px; color:var(--muted);}
+  .conn .dot{display:inline-block; width:8px; height:8px; border-radius:99px; background:#b6c2b2; margin-right:4px; vertical-align:1px;}
+  .conn.on .dot{background:#43a35f;}
+  .cat-title{font-size:14px; font-weight:700; margin:16px 2px 8px; color:var(--green-dark); display:flex; justify-content:space-between; align-items:baseline;}
+  .cat-title span{font-size:12px; color:var(--muted); font-weight:400;}
+  ul.items{list-style:none; margin:0; padding:0; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden;}
+  ul.items li{display:flex; align-items:center; gap:10px; padding:11px 12px; border-bottom:1px solid var(--line);}
+  ul.items li:last-child{border-bottom:none;}
+  ul.items li.done .name{color:var(--muted); text-decoration:line-through;}
+  ul.items input[type=checkbox]{width:22px; height:22px; accent-color:var(--green); flex:none; margin:0;}
+  ul.items .name{flex:1; font-size:15.5px; word-break:break-all;}
+  .del{flex:none; background:none; border:none; color:#b9c4b6; font-size:18px; padding:4px 6px; cursor:pointer;}
+  .empty{font-size:13.5px; color:var(--muted); padding:10px 2px;}
+  .toolbar{display:flex; gap:8px; flex-wrap:wrap;}
+  .toolbar button{flex:1; white-space:nowrap; font-size:13.5px; padding:10px 8px;}
+  footer{max-width:640px; margin:0 auto; padding:0 12px 28px; font-size:11.5px; color:var(--muted); line-height:1.7;}
+</style>
+</head>
+<body>
+<header>
+  <h1>🏕️ キャンプ持ち物チェック</h1>
+  <div class="sub">家族みんなで同じリストを見て、チェックがその場で共有されます</div>
+</header>
+<main>
+  <!-- 合言葉ゲート -->
+  <section id="roomGate" class="card">
+    <label for="roomCodeInput">合言葉（部屋コード）</label>
+    <input type="text" id="roomCodeInput" placeholder="例： matsuo-camp" autocomplete="off">
+    <div style="height:10px"></div>
+    <div class="row">
+      <button id="joinRoomBtn" class="btn-primary">この合言葉で入る</button>
+    </div>
+    <div style="height:8px"></div>
+    <button id="createRoomBtn" class="btn-sub" style="width:100%">新しいリストを作る（合言葉を自動発行）</button>
+    <div id="gateMsg" class="msg"></div>
+    <p class="note">家族で同じ合言葉を使うと、同じリストを共有できます。誰かがアイテムをチェックすると、全員の画面にすぐ反映されます。合言葉は半角英数字・ハイフン・アンダーバー、3〜32文字です。</p>
+  </section>
+
+  <!-- 本体 -->
+  <section id="appMain" class="hidden">
+    <div class="card">
+      <div class="roomline">
+        <span style="font-size:13px; color:var(--muted)">合言葉</span>
+        <span class="roomcode" id="roomCodeLabel"></span>
+        <span class="conn" id="connStatus"><span class="dot"></span><span id="connText">接続中…</span></span>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-text" id="progressText">0 / 0 個チェック済み</div>
+      </div>
+      <div style="height:8px"></div>
+      <div class="row">
+        <button id="shareBtn" class="btn-accent">共有リンクをコピー</button>
+        <button id="leaveBtn" class="btn-sub">合言葉を変える</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <label for="addName">アイテムを追加</label>
+      <div class="row" style="align-items:stretch">
+        <input type="text" id="addName" placeholder="例： 虫よけスプレー" style="flex:2">
+        <select id="addCat" style="flex:1.4"></select>
+      </div>
+      <div style="height:8px"></div>
+      <button id="addBtn" class="btn-primary">＋ 追加する</button>
+      <div id="addMsg" class="msg"></div>
+    </div>
+
+    <div id="listWrap"></div>
+
+    <div class="card">
+      <div class="toolbar">
+        <button id="resetChecksBtn" class="btn-sub">チェックを全部外す</button>
+        <button id="addPresetBtn" class="btn-sub">定番アイテムを追加</button>
+        <button id="clearAllBtn" class="btn-danger">リストを空にする</button>
+      </div>
+      <p class="note" style="margin-top:10px">「チェックを全部外す」は次のキャンプの準備を始めるときに使ってください。「リストを空にする」はアイテム自体をすべて削除します（家族全員に反映されます）。</p>
+    </div>
+  </section>
+</main>
+<footer>
+  チェックや追加は、同じ合言葉で開いている全員の画面にリアルタイムで反映されます。リンクと合言葉を知っている人は誰でもリストを見たり編集したりできるので、家族の外には広めないでください。
+</footer>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<script>
+"use strict";
+/* ===== Firebase設定（デプロイ時に実値を入れる） ===== */
+var FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCGDTToPt_XkJf6UM9FFPfxs4vGR7qF0Es",
+  authDomain: "camp-packing-list.firebaseapp.com",
+  databaseURL: "https://camp-packing-list-default-rtdb.firebaseio.com",
+  projectId: "camp-packing-list",
+  storageBucket: "camp-packing-list.firebasestorage.app",
+  messagingSenderId: "686552196050",
+  appId: "1:686552196050:web:867b4b4ac45a49cfde1e0b"
+};
+var CONFIG_READY = FIREBASE_CONFIG.apiKey.indexOf("__") !== 0;
+
+/* ===== 定数 ===== */
+var CATEGORIES = ["テント・寝具", "調理・食事", "火・照明・電源", "衣類・身の回り", "遊び・その他"];
+var PRESETS = [
+  ["テント", "テント・寝具"], ["グランドシート", "テント・寝具"], ["ペグ・ハンマー", "テント・寝具"],
+  ["寝袋", "テント・寝具"], ["マット", "テント・寝具"], ["枕", "テント・寝具"],
+  ["バーナー・ガス缶", "調理・食事"], ["クッカー", "調理・食事"], ["食器・カトラリー", "調理・食事"],
+  ["クーラーボックス", "調理・食事"], ["保冷剤", "調理・食事"], ["調味料", "調理・食事"], ["ゴミ袋", "調理・食事"],
+  ["ランタン", "火・照明・電源"], ["ヘッドライト", "火・照明・電源"], ["モバイルバッテリー", "火・照明・電源"],
+  ["充電ケーブル", "火・照明・電源"], ["着火ライター", "火・照明・電源"], ["焚き火台", "火・照明・電源"], ["薪・炭", "火・照明・電源"],
+  ["着替え", "衣類・身の回り"], ["防寒着", "衣類・身の回り"], ["レインウェア", "衣類・身の回り"],
+  ["タオル", "衣類・身の回り"], ["日焼け止め", "衣類・身の回り"], ["虫よけ", "衣類・身の回り"],
+  ["常備薬", "衣類・身の回り"], ["ティッシュ・ウェットティッシュ", "衣類・身の回り"],
+  ["チェア", "遊び・その他"], ["テーブル", "遊び・その他"], ["レジャーシート", "遊び・その他"], ["救急セット", "遊び・その他"]
+];
+var LS_ROOM = "packingList.room";
+var LS_LOCAL_PREFIX = "packingList.local.";
+
+/* ===== 状態 ===== */
+var roomCode = null;
+var items = {};        // id -> {name, cat, checked, ts}
+var db = null;         // firebase database
+var itemsRef = null;
+var localMode = false;
+
+/* ===== DOM ===== */
+var $ = function (id) { return document.getElementById(id); };
+var roomGate = $("roomGate"), appMain = $("appMain");
+var roomCodeInput = $("roomCodeInput"), gateMsg = $("gateMsg");
+var roomCodeLabel = $("roomCodeLabel"), connStatus = $("connStatus"), connText = $("connText");
+var progressFill = $("progressFill"), progressText = $("progressText");
+var addName = $("addName"), addCat = $("addCat"), addMsg = $("addMsg");
+var listWrap = $("listWrap");
+
+CATEGORIES.forEach(function (c) {
+  var o = document.createElement("option");
+  o.value = c; o.textContent = c;
+  addCat.appendChild(o);
+});
+
+/* ===== ユーティリティ ===== */
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, function (ch) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+  });
+}
+function validRoomCode(code) { return /^[A-Za-z0-9_-]{3,32}$/.test(code); }
+function genRoomCode() {
+  var chars = "abcdefghjkmnpqrstuvwxyz23456789", out = "";
+  for (var i = 0; i < 8; i++) out += chars.charAt(Math.floor(Math.random() * chars.length));
+  return "camp-" + out;
+}
+function sortedItems() {
+  var arr = Object.keys(items).map(function (id) {
+    var it = items[id]; return { id: id, name: it.name, cat: it.cat, checked: !!it.checked, ts: it.ts || 0 };
+  });
+  arr.sort(function (a, b) {
+    var ca = CATEGORIES.indexOf(a.cat), cb = CATEGORIES.indexOf(b.cat);
+    if (ca !== cb) return ca - cb;
+    return a.ts - b.ts;
+  });
+  return arr;
+}
+
+/* ===== 描画 ===== */
+function render() {
+  var arr = sortedItems();
+  var done = arr.filter(function (i) { return i.checked; }).length;
+  progressText.textContent = done + " / " + arr.length + " 個チェック済み";
+  progressFill.style.width = arr.length ? Math.round(done / arr.length * 100) + "%" : "0%";
+  var html = "";
+  CATEGORIES.forEach(function (cat) {
+    var inCat = arr.filter(function (i) { return i.cat === cat; });
+    if (!inCat.length) return;
+    var d = inCat.filter(function (i) { return i.checked; }).length;
+    html += '<div class="cat-title">' + escapeHtml(cat) + "<span>" + d + " / " + inCat.length + "</span></div>";
+    html += '<ul class="items">';
+    inCat.forEach(function (i) {
+      html += '<li class="' + (i.checked ? "done" : "") + '">' +
+        '<input type="checkbox" data-act="toggle" data-id="' + escapeHtml(i.id) + '"' + (i.checked ? " checked" : "") + ">" +
+        '<span class="name">' + escapeHtml(i.name) + "</span>" +
+        '<button class="del" data-act="del" data-id="' + escapeHtml(i.id) + '" aria-label="削除">✕</button></li>';
+    });
+    html += "</ul>";
+  });
+  if (!arr.length) {
+    html = '<p class="empty">まだアイテムがありません。下の「定番アイテムを追加」から始めるか、上のフォームで追加してください。</p>';
+  }
+  listWrap.innerHTML = html;
+}
+
+/* ===== 保存層 ===== */
+function persistLocal() {
+  try { localStorage.setItem(LS_LOCAL_PREFIX + roomCode, JSON.stringify(items)); } catch (e) {}
+}
+function loadLocal() {
+  try {
+    var raw = localStorage.getItem(LS_LOCAL_PREFIX + roomCode);
+    items = raw ? JSON.parse(raw) : {};
+  } catch (e) { items = {}; }
+}
+function setConn(on, text) {
+  connStatus.className = "conn" + (on ? " on" : "");
+  connText.textContent = text;
+}
+function saveItem(id, data) {
+  if (localMode) { if (data === null) delete items[id]; else items[id] = data; persistLocal(); render(); }
+  else if (itemsRef) { if (data === null) itemsRef.child(id).remove(); else itemsRef.child(id).set(data); }
+}
+function updateItem(id, patch) {
+  if (localMode) { if (items[id]) { for (var k in patch) items[id][k] = patch[k]; persistLocal(); render(); } }
+  else if (itemsRef) { itemsRef.child(id).update(patch); }
+}
+function pushItem(data) {
+  if (localMode) {
+    var id = "local-" + Date.now() + "-" + Math.floor(Math.random() * 1e6);
+    items[id] = data; persistLocal(); render(); return id;
+  }
+  if (itemsRef) { return itemsRef.push(data).key; }
+  return null;
+}
+function addPresets() {
+  var existing = {};
+  Object.keys(items).forEach(function (id) { existing[items[id].name] = true; });
+  var ts = Date.now(), added = 0;
+  PRESETS.forEach(function (p, idx) {
+    if (existing[p[0]]) return;
+    pushItem({ name: p[0], cat: p[1], checked: false, ts: ts + idx });
+    added++;
+  });
+  return added;
+}
+
+/* ===== 部屋への入室 ===== */
+function enterRoom(code, isNew) {
+  roomCode = code;
+  try { localStorage.setItem(LS_ROOM, code); } catch (e) {}
+  roomCodeLabel.textContent = code;
+  roomGate.classList.add("hidden");
+  appMain.classList.remove("hidden");
+  items = {};
+  render();
+
+  localMode = !(CONFIG_READY && typeof firebase !== "undefined");
+  if (localMode) {
+    setConn(false, "ローカルモード（この端末内だけ・同期しません）");
+    loadLocal();
+    render();
+    if (isNew && !Object.keys(items).length) addPresets();
+    return;
+  }
+  if (!db) { firebase.initializeApp(FIREBASE_CONFIG); db = firebase.database(); }
+  itemsRef = db.ref("rooms/" + code + "/items");
+  itemsRef.on("value", function (snap) {
+    items = snap.val() || {};
+    setConn(true, "同期中（家族と共有しています）");
+    render();
+  }, function (err) {
+    setConn(false, "接続エラー：" + err.message);
+  });
+  if (isNew) {
+    itemsRef.once("value").then(function (snap) {
+      if (!snap.val()) addPresets();
+    });
+  }
+}
+function leaveRoom() {
+  if (itemsRef) { itemsRef.off(); itemsRef = null; }
+  roomCode = null; items = {};
+  try { localStorage.removeItem(LS_ROOM); } catch (e) {}
+  appMain.classList.add("hidden");
+  roomGate.classList.remove("hidden");
+  roomCodeInput.value = "";
+}
+
+/* ===== イベント ===== */
+$("joinRoomBtn").addEventListener("click", function () {
+  var code = roomCodeInput.value.trim();
+  if (!validRoomCode(code)) { gateMsg.textContent = "合言葉は半角英数字・ハイフン・アンダーバーで3〜32文字にしてください。"; return; }
+  gateMsg.textContent = "";
+  enterRoom(code, false);
+});
+$("createRoomBtn").addEventListener("click", function () {
+  gateMsg.textContent = "";
+  enterRoom(genRoomCode(), true);
+});
+roomCodeInput.addEventListener("keydown", function (e) { if (e.key === "Enter") $("joinRoomBtn").click(); });
+$("leaveBtn").addEventListener("click", leaveRoom);
+$("shareBtn").addEventListener("click", function () {
+  var url = location.origin + location.pathname + "?room=" + encodeURIComponent(roomCode);
+  var text = "キャンプ持ち物チェック（合言葉： " + roomCode + "）\n" + url;
+  function done() { $("shareBtn").textContent = "コピーしました ✓"; setTimeout(function () { $("shareBtn").textContent = "共有リンクをコピー"; }, 2000); }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, function () { window.prompt("このリンクを家族に送ってください", url); });
+  } else { window.prompt("このリンクを家族に送ってください", url); }
+});
+$("addBtn").addEventListener("click", function () {
+  var name = addName.value.trim();
+  if (!name) { addMsg.textContent = "アイテム名を入力してください。"; return; }
+  addMsg.textContent = "";
+  pushItem({ name: name, cat: addCat.value, checked: false, ts: Date.now() });
+  addName.value = "";
+  addName.focus();
+});
+addName.addEventListener("keydown", function (e) { if (e.key === "Enter") $("addBtn").click(); });
+listWrap.addEventListener("click", function (e) {
+  var t = e.target;
+  var act = t.getAttribute && t.getAttribute("data-act");
+  if (!act) return;
+  var id = t.getAttribute("data-id");
+  if (act === "del") { saveItem(id, null); }
+});
+listWrap.addEventListener("change", function (e) {
+  var t = e.target;
+  if (t.getAttribute && t.getAttribute("data-act") === "toggle") {
+    updateItem(t.getAttribute("data-id"), { checked: t.checked });
+  }
+});
+$("resetChecksBtn").addEventListener("click", function () {
+  Object.keys(items).forEach(function (id) { if (items[id].checked) updateItem(id, { checked: false }); });
+});
+$("addPresetBtn").addEventListener("click", function () { addPresets(); });
+$("clearAllBtn").addEventListener("click", function () {
+  if (!window.confirm("リストを空にします。家族全員の画面からも消えます。よろしいですか？")) return;
+  if (localMode) { items = {}; persistLocal(); render(); }
+  else if (itemsRef) { itemsRef.remove(); }
+});
+
+/* ===== 起動： URLの ?room= か、前回の合言葉で自動入室 ===== */
+(function init() {
+  var m = /[?&]room=([^&]+)/.exec(location.search || "");
+  var code = m ? decodeURIComponent(m[1]) : null;
+  if (!code) { try { code = localStorage.getItem(LS_ROOM); } catch (e) {} }
+  if (code && validRoomCode(code)) enterRoom(code, false);
+})();
+</script>
+</body>
+</html>
