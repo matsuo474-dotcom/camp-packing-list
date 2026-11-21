@@ -343,8 +343,7 @@ function renderSidebar() {
     if (t.type === "list") { html += sideListRow(t.l, false); return; }
     var g = t.g;
     var kids = all.filter(function (l) { return l.groupId === g.id; });
-    var hasCurrent = kids.some(function (l) { return l.id === currentListId; });
-    var closed = isGCollapsed(g.id) && !hasCurrent;
+    var closed = isGCollapsed(g.id);
     html += '<li class="group-head" data-group="' + escapeHtml(g.id) + '">' +
       '<span class="gchev">' + (closed ? "▸" : "▾") + '</span>' +
       '<span class="lname">' + escapeHtml(g.name) + "</span>" +
@@ -1019,38 +1018,54 @@ function sideDragCleanup() {
     d.li.style.width = "";
     d.li.style.zIndex = "";
     d.li.style.pointerEvents = "";
+    d.li.style.transform = "";
   }
   clearSideDropMarks();
+}
+function updateSideDropTarget() {
+  var d = sideDrag;
+  if (!d || !d.active) return;
+  clearSideDropMarks();
+  var under = document.elementFromPoint ? document.elementFromPoint(d.lastX, d.lastY) : null;
+  var gh = under && under.closest ? under.closest("[data-group]") : null;
+  d.targetGid = gh ? gh.getAttribute("data-group") : null;
+  if (gh) gh.classList.add("drop-target");
 }
 function sideDragMove(e) {
   if (!sideDrag) return;
   var d = sideDrag;
+  d.lastX = e.clientX;
+  d.lastY = e.clientY;
   if (!d.active) {
     var dx = e.clientX - d.startX, dy = e.clientY - d.startY;
     if (Math.sqrt(dx * dx + dy * dy) < 6) return;
     d.active = true;
     var rect = d.li.getBoundingClientRect();
-    d.grabDX = d.startX - rect.left;
-    d.grabDY = d.startY - rect.top;
     d.li.classList.add("drag-lift");
     d.li.style.position = "fixed";
+    d.li.style.left = rect.left + "px";
+    d.li.style.top = rect.top + "px";
     d.li.style.width = rect.width + "px";
     d.li.style.zIndex = "80";
     d.li.style.pointerEvents = "none";
     if (navigator.vibrate) { try { navigator.vibrate(10); } catch (err) {} }
   }
-  d.li.style.left = (e.clientX - d.grabDX) + "px";
-  d.li.style.top = (e.clientY - d.grabDY) + "px";
-  clearSideDropMarks();
-  var under = document.elementFromPoint ? document.elementFromPoint(e.clientX, e.clientY) : null;
-  var gh = under && under.closest ? under.closest("[data-group]") : null;
-  d.targetGid = gh ? gh.getAttribute("data-group") : null;
-  if (gh) gh.classList.add("drop-target");
+  d.li.style.transform = "translate(" + (e.clientX - d.startX) + "px," + (e.clientY - d.startY) + "px)";
+  if (!d.rafPending) {
+    d.rafPending = true;
+    var raf = window.requestAnimationFrame || function (f) { f(); };
+    raf(function () {
+      if (!sideDrag) return;
+      sideDrag.rafPending = false;
+      updateSideDropTarget();
+    });
+  }
 }
 function sideDragEnd() {
   if (!sideDrag) return;
   var d = sideDrag;
   var wasActive = d.active;
+  if (wasActive) updateSideDropTarget();
   var gid = d.targetGid;
   sideDragCleanup();
   if (wasActive) {
