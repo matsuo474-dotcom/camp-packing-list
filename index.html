@@ -82,7 +82,8 @@
   ul.items input[type=checkbox]{appearance:none; -webkit-appearance:none; width:24px; height:24px; flex:none; margin:0; border:2px solid #9db89d; border-radius:50%; background:#fff; cursor:pointer; position:relative;}
   ul.items input[type=checkbox]:checked{background:var(--green); border-color:var(--green);}
   ul.items input[type=checkbox]:checked::after{content:"✓"; position:absolute; inset:0; color:#fff; font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center;}
-  ul.items .name{flex:1; font-size:15.5px; word-break:break-all;}
+  ul.items .name{flex:1; font-size:15.5px; word-break:break-all; cursor:text;}
+  .rename-input{flex:1; min-width:0; font-size:15.5px; padding:4px 6px; border:1.5px solid var(--accent); border-radius:6px;}
   ul.items .kidcount{flex:none; font-size:12.5px; color:var(--muted); font-weight:400;}
   .chev{flex:none; background:none; border:none; color:var(--muted); font-size:13px; padding:4px 2px; cursor:pointer; width:20px;}
   .handle{flex:none; color:#c3cec1; font-size:15px; padding:6px 2px; cursor:grab; touch-action:none; user-select:none; -webkit-user-select:none;}
@@ -112,7 +113,8 @@
     .add-target-bar{font-size:11px; padding:4px 8px;}
     ul.items li{padding:6px 6px; gap:5px;}
     ul.items li.child-row{padding-left:26px;}
-    .item-name{font-size:13px;}
+    ul.items .name{font-size:13px;}
+    .rename-input{font-size:16px !important;}
     .drag-handle{font-size:13px; padding:8px 5px;}
     .collapse-btn{font-size:12px; padding:6px 3px;}
     .item-actions button{font-size:10px; padding:2px 5px;}
@@ -213,6 +215,7 @@ var listsRef = null;
 var localMode = false;
 var localData = null;    // {lists:{}, items:{listId:{}}, current:""}
 var addTargetParentId = null;
+var renamingId = null;
 var collapsedMap = {};   // listId -> {parentId: 1} （この端末だけの表示状態）
 
 /* ===== DOM ===== */
@@ -293,14 +296,19 @@ function itemRow(id, it, isChild) {
   var html = '<li class="' + cls + '" data-id="' + escapeHtml(id) + '" data-parent="' + escapeHtml(it.parentId || "") + '">';
   if (kids.length) html += '<button class="chev" data-act="collapse" data-id="' + escapeHtml(id) + '">' + (isCollapsed(id) ? "▸" : "▾") + "</button>";
   html += '<span class="handle" data-handle="1" data-id="' + escapeHtml(id) + '">☰</span>' +
-    '<input type="checkbox" data-act="toggle" data-id="' + escapeHtml(id) + '"' + (checked ? " checked" : "") + ">" +
-    '<span class="name">' + escapeHtml(it.name) + "</span>";
+    '<input type="checkbox" data-act="toggle" data-id="' + escapeHtml(id) + '"' + (checked ? " checked" : "") + ">";
+  if (renamingId === id) {
+    html += '<input type="text" class="rename-input" data-rename="' + escapeHtml(id) + '" value="' + escapeHtml(it.name) + '">';
+  } else {
+    html += '<span class="name" data-act="rename" data-id="' + escapeHtml(id) + '">' + escapeHtml(it.name) + "</span>";
+  }
   if (kids.length) html += '<span class="kidcount">' + kids.length + "件</span>";
   if (!isChild) html += '<button class="mini" data-act="addchild" data-id="' + escapeHtml(id) + '">＋子</button>';
   html += '<button class="del" data-act="del" data-id="' + escapeHtml(id) + '" aria-label="削除">✕</button></li>';
   return html;
 }
 function renderMain() {
+  if (renamingId && !items[renamingId]) renamingId = null;
   var cur = lists[currentListId];
   listTitle.textContent = cur ? cur.name : "リスト";
   var lv = leaves();
@@ -323,6 +331,13 @@ function renderMain() {
     html = '<p class="empty">まだアイテムがありません。上の欄で追加するか、「定番（キャンプ）を追加」から始めてください。</p>';
   }
   listWrap.innerHTML = html;
+  if (renamingId && listWrap.querySelector) {
+    var ri = listWrap.querySelector(".rename-input");
+    if (ri) {
+      ri.focus();
+      try { ri.setSelectionRange(ri.value.length, ri.value.length); } catch (e) {}
+    }
+  }
 }
 function render() { renderSidebar(); renderMain(); }
 function closeDrawer() {
@@ -861,7 +876,41 @@ listWrap.addEventListener("click", function (e) {
   } else if (act === "collapse") {
     setCollapsed(id, !isCollapsed(id));
     render();
+  } else if (act === "rename") {
+    if (renamingId !== id) { renamingId = id; render(); }
   }
+});
+function renameItem(id, name) {
+  if (localMode) {
+    items[id].name = name;
+    persistLocal();
+    render();
+  } else {
+    var patch = {};
+    patch[id] = { name: name };
+    updateFields(patch);
+  }
+}
+function commitRename(save) {
+  if (!renamingId) return;
+  var id = renamingId;
+  renamingId = null;
+  var input = listWrap.querySelector ? listWrap.querySelector(".rename-input") : null;
+  if (save && input) {
+    var name = input.value.trim();
+    if (name && items[id] && name !== items[id].name) { renameItem(id, name); return; }
+  }
+  render();
+}
+listWrap.addEventListener("keydown", function (e) {
+  var t = e.target;
+  if (!t.getAttribute || !t.getAttribute("data-rename")) return;
+  if (e.key === "Enter") { e.preventDefault(); commitRename(true); }
+  else if (e.key === "Escape") { commitRename(false); }
+});
+listWrap.addEventListener("focusout", function (e) {
+  var t = e.target;
+  if (t.getAttribute && t.getAttribute("data-rename")) commitRename(true);
 });
 listWrap.addEventListener("change", function (e) {
   var t = e.target;
