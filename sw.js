@@ -1,7 +1,7 @@
 /* 持ち物チェック Service Worker
    - 同一オリジンのGETだけを扱う（Firebase等の外部通信には触らない）
    - ページ本体はネットワーク優先（更新がすぐ反映される）、失敗時のみキャッシュ */
-var CACHE = "packing-list-v1";
+var CACHE = "packing-list-v2";
 var SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", function (e) {
@@ -24,7 +24,7 @@ self.addEventListener("fetch", function (e) {
   var url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // Firebase等は素通し
   e.respondWith(
-    fetch(req).then(function (res) {
+    fetch(req, { cache: "no-store" }).then(function (res) {
       var copy = res.clone();
       caches.open(CACHE).then(function (c) { c.put(req, copy); });
       return res;
