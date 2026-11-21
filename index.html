@@ -57,9 +57,14 @@
   ul.side-lists .ic{color:var(--muted); font-size:14px; flex:none;}
   ul.side-lists .lname{flex:1; word-break:break-all;}
   ul.side-lists .count{flex:none; font-size:13px; color:var(--muted); min-width:18px; text-align:right;}
+  ul.side-lists li.in-group{padding-left:28px; font-size:14.5px;}
+  ul.side-lists li.group-head{background:var(--parent); font-weight:700; cursor:pointer;}
+  ul.side-lists li.group-head:hover{background:var(--parent);}
+  ul.side-lists .gchev{flex:none; color:var(--muted); font-size:12px; width:14px;}
+  ul.side-lists .gdel{flex:none; background:none; border:none; color:var(--muted); font-size:14px; cursor:pointer; padding:2px 4px;}
   .side-foot{padding:10px 12px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:8px;}
-  #newListBtn{background:none; border:none; color:var(--green-dark); font-size:15px; font-weight:600; text-align:left; padding:8px 6px; cursor:pointer; border-radius:8px;}
-  #newListBtn:hover{background:var(--hover);}
+  #newListBtn,#newGroupBtn{background:none; border:none; color:var(--green-dark); font-size:15px; font-weight:600; text-align:left; padding:8px 6px; cursor:pointer; border-radius:8px;}
+  #newListBtn:hover,#newGroupBtn:hover{background:var(--hover);}
   #sidebarBackdrop{display:none;}
   /* ===== メイン ===== */
   main{flex:1; overflow-y:auto; min-width:0;}
@@ -110,7 +115,9 @@
   .mini{flex:none; background:var(--sub); border:1px solid var(--line); color:var(--green-dark); font-size:12.5px; font-weight:700; padding:6px 9px; border-radius:8px; cursor:pointer;}
   .del{flex:none; background:none; border:none; color:#b9c4b6; font-size:18px; padding:4px 6px; cursor:pointer;}
   .empty{font-size:13.5px; color:var(--muted); padding:10px 2px;}
-  .toolbar{display:flex; gap:8px; flex-wrap:wrap;}
+  .toolbar{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+  .group-pick{font-size:13.5px; color:var(--muted); display:flex; align-items:center; gap:6px;}
+  .group-pick select{font-size:14px; padding:7px 8px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--text); max-width:180px;}
   .toolbar button{flex:1; white-space:nowrap; font-size:13.5px; padding:10px 8px;}
   .foot-note{font-size:11.5px; color:var(--muted); line-height:1.7; margin-top:4px;}
   /* ===== スマホ： サイドバーはドロワー ===== */
@@ -154,6 +161,7 @@
     <ul class="side-lists" id="sidebarLists"></ul>
     <div class="side-foot">
       <button id="newListBtn">＋ 新しいリスト</button>
+      <button id="newGroupBtn">＋ グループ</button>
       <button id="shareBtn" class="btn-accent">共有リンクをコピー</button>
     </div>
   </aside>
@@ -182,6 +190,7 @@
 
       <div class="card">
         <div class="toolbar">
+          <label class="group-pick">グループ <select id="groupSelect"></select></label>
           <button id="resetChecksBtn" class="btn-sub">チェックを全部外す</button>
           <button id="deleteListBtn" class="btn-danger">このリストを削除</button>
         </div>
@@ -219,20 +228,24 @@ var PRESET_TREE = [
 var DEFAULT_ROOM = "camp-vv2ru9wh";
 var LS_LOCAL_PREFIX = "packingList.local.";
 var LS_COLLAPSED_PREFIX = "packingList.collapsed.";
+var LS_GCOLLAPSED_PREFIX = "packingList.gcollapsed.";
 
 /* ===== 状態 ===== */
 var roomCode = null;
 var allData = {};        // listId -> {name, ts, items:{...}} （Firebaseモード）
-var lists = {};          // listId -> {name, ts}
+var lists = {};          // listId -> {name, ts, groupId}
+var groups = {};         // groupId -> {name, ts}
 var currentListId = null;
 var items = {};          // itemId -> {name, parentId, checked, ts} （現在のリスト分）
 var db = null;
 var listsRef = null;
+var groupsRef = null;
 var localMode = false;
 var localData = null;    // {lists:{}, items:{listId:{}}, current:""}
 var addTargetParentId = null;
 var renamingId = null;
 var collapsedMap = {};   // listId -> {parentId: 1} （この端末だけの表示状態）
+var gCollapsed = {};     // groupId -> 1 （この端末だけの表示状態）
 
 /* ===== DOM ===== */
 var $ = function (id) { return document.getElementById(id); };
@@ -274,8 +287,23 @@ function uncheckedLeafCount(listId) {
   return leavesIn(itemsOf(listId)).filter(function (x) { return !x.item.checked; }).length;
 }
 function sortedLists() {
-  return Object.keys(lists).map(function (id) { return { id: id, name: lists[id].name, ts: lists[id].ts || 0 }; })
+  return Object.keys(lists).map(function (id) { return { id: id, name: lists[id].name, ts: lists[id].ts || 0, groupId: lists[id].groupId || null }; })
     .sort(function (a, b) { return a.ts - b.ts; });
+}
+function sortedGroups() {
+  return Object.keys(groups).map(function (id) { return { id: id, name: groups[id].name, ts: groups[id].ts || 0 }; })
+    .sort(function (a, b) { return a.ts - b.ts; });
+}
+function isGCollapsed(gid) { return !!gCollapsed[gid]; }
+function setGCollapsed(gid, on) {
+  if (on) gCollapsed[gid] = 1; else delete gCollapsed[gid];
+  try { localStorage.setItem(LS_GCOLLAPSED_PREFIX + roomCode, JSON.stringify(gCollapsed)); } catch (e) {}
+}
+function loadGCollapsed() {
+  try {
+    var raw = localStorage.getItem(LS_GCOLLAPSED_PREFIX + roomCode);
+    if (raw) gCollapsed = JSON.parse(raw) || {};
+  } catch (e) {}
 }
 function isCollapsed(pid) {
   return !!(collapsedMap[currentListId] && collapsedMap[currentListId][pid]);
@@ -293,15 +321,46 @@ function loadCollapsed() {
 }
 
 /* ===== 描画 ===== */
+function sideListRow(l, inGroup) {
+  var n = uncheckedLeafCount(l.id);
+  var cls = "";
+  if (l.id === currentListId) cls = "active";
+  if (inGroup) cls = (cls ? cls + " " : "") + "in-group";
+  return '<li data-list="' + escapeHtml(l.id) + '"' + (cls ? ' class="' + cls + '"' : "") + '>' +
+    '<span class="ic">☰</span><span class="lname">' + escapeHtml(l.name) + "</span>" +
+    '<span class="count">' + (n > 0 ? n : "") + "</span></li>";
+}
 function renderSidebar() {
   var html = "";
-  sortedLists().forEach(function (l) {
-    var n = uncheckedLeafCount(l.id);
-    html += '<li data-list="' + escapeHtml(l.id) + '"' + (l.id === currentListId ? ' class="active"' : "") + '>' +
-      '<span class="ic">☰</span><span class="lname">' + escapeHtml(l.name) + "</span>" +
-      '<span class="count">' + (n > 0 ? n : "") + "</span></li>";
+  var all = sortedLists();
+  var tops = [];
+  all.forEach(function (l) { if (!l.groupId || !groups[l.groupId]) tops.push({ type: "list", ts: l.ts, l: l }); });
+  sortedGroups().forEach(function (g) { tops.push({ type: "group", ts: g.ts, g: g }); });
+  tops.sort(function (a, b) { return a.ts - b.ts; });
+  tops.forEach(function (t) {
+    if (t.type === "list") { html += sideListRow(t.l, false); return; }
+    var g = t.g;
+    var kids = all.filter(function (l) { return l.groupId === g.id; });
+    var hasCurrent = kids.some(function (l) { return l.id === currentListId; });
+    var closed = isGCollapsed(g.id) && !hasCurrent;
+    html += '<li class="group-head" data-group="' + escapeHtml(g.id) + '">' +
+      '<span class="gchev">' + (closed ? "▸" : "▾") + '</span>' +
+      '<span class="lname">' + escapeHtml(g.name) + "</span>" +
+      '<button class="gdel" data-gdel="' + escapeHtml(g.id) + '" aria-label="グループを削除">✕</button></li>';
+    if (!closed) kids.forEach(function (l) { html += sideListRow(l, true); });
   });
   sidebarLists.innerHTML = html;
+}
+function renderGroupSelect() {
+  var sel = $("groupSelect");
+  if (!sel) return;
+  var cur = lists[currentListId];
+  var html = '<option value="">（グループなし）</option>';
+  sortedGroups().forEach(function (g) {
+    html += '<option value="' + escapeHtml(g.id) + '">' + escapeHtml(g.name) + "</option>";
+  });
+  sel.innerHTML = html;
+  sel.value = cur && cur.groupId ? cur.groupId : "";
 }
 function itemRow(id, it, isChild) {
   var kids = childrenOf(id);
@@ -355,7 +414,7 @@ function renderMain() {
     }
   }
 }
-function render() { renderSidebar(); renderMain(); }
+function render() { renderSidebar(); renderMain(); renderGroupSelect(); }
 function closeDrawer() {
   sidebar.classList.remove("open");
   sidebarBackdrop.classList.remove("show");
@@ -429,6 +488,8 @@ function loadLocal() {
     localData.items[lid2] = presetItemsObj();
     persistLocal();
   }
+  if (!localData.groups) localData.groups = {};
+  groups = localData.groups;
   lists = localData.lists;
   currentListId = localData.current && lists[localData.current] ? localData.current : sortedLists()[0].id;
   items = localData.items[currentListId] || {};
@@ -446,7 +507,7 @@ function currentItemsRef() {
 }
 function syncFromAllData() {
   lists = {};
-  Object.keys(allData).forEach(function (id) { lists[id] = { name: allData[id].name, ts: allData[id].ts || 0 }; });
+  Object.keys(allData).forEach(function (id) { lists[id] = { name: allData[id].name, ts: allData[id].ts || 0, groupId: allData[id].groupId || null }; });
   if (!currentListId || !lists[currentListId]) {
     var sl = sortedLists();
     currentListId = sl.length ? sl[0].id : null;
@@ -492,6 +553,41 @@ function deleteCurrentList() {
   }
   currentListId = rest[0].id;
   listsRef.child(id).remove();
+}
+function addGroup(name) {
+  if (localMode) {
+    var id = localId();
+    localData.groups[id] = { name: name, ts: Date.now() };
+    groups = localData.groups;
+    persistLocal();
+    render();
+    return;
+  }
+  if (groupsRef) groupsRef.push({ name: name, ts: Date.now() });
+}
+function setListGroup(lid, gid) {
+  if (localMode) {
+    if (localData.lists[lid]) localData.lists[lid].groupId = gid || null;
+    lists = localData.lists;
+    persistLocal();
+    render();
+    return;
+  }
+  if (listsRef) listsRef.child(lid).update({ groupId: gid || null });
+}
+function deleteGroup(gid) {
+  var g = groups[gid];
+  if (!g) return;
+  if (!window.confirm("グループ「" + g.name + "」を削除します。中のリストは削除されず、グループから外れます。よろしいですか？")) return;
+  Object.keys(lists).forEach(function (lid) { if (lists[lid].groupId === gid) setListGroup(lid, null); });
+  if (localMode) {
+    delete localData.groups[gid];
+    groups = localData.groups;
+    persistLocal();
+    render();
+    return;
+  }
+  if (groupsRef) groupsRef.child(gid).remove();
 }
 function pushItem(data) {
   if (localMode) {
@@ -801,9 +897,17 @@ function attachListsListener() {
     render();
   }, function (err) { setConn(false, "接続エラー：" + err.message); });
 }
+function attachGroupsListener() {
+  if (!groupsRef) return;
+  groupsRef.on("value", function (snap) {
+    groups = snap.val() || {};
+    render();
+  }, function () {});
+}
 function enterRoom(code) {
   roomCode = code;
   loadCollapsed();
+  loadGCollapsed();
   localMode = !(CONFIG_READY && typeof firebase !== "undefined");
   if (localMode) {
     setConn(false, "ローカルモード（この端末内だけ・同期しません）");
@@ -814,15 +918,18 @@ function enterRoom(code) {
   if (!db) { firebase.initializeApp(FIREBASE_CONFIG); db = firebase.database(); }
   var rootRef = db.ref("rooms/" + code);
   listsRef = rootRef.child("lists");
+  groupsRef = rootRef.child("groups");
   rootRef.once("value").then(function (snap) {
     var val = snap.val() || {};
     var p = val.lists ? Promise.resolve() : migrateFirebase(rootRef, val.items || {});
     return p;
   }).then(function () {
     attachListsListener();
+    attachGroupsListener();
   }).catch(function () {
     setConn(false, "接続エラー（移行に失敗しました）");
     attachListsListener();
+    attachGroupsListener();
   });
 }
 
@@ -867,8 +974,21 @@ $("newListBtn").addEventListener("click", function () {
   var name = window.prompt("新しいリストの名前を入力してください（例： 買い物、旅行）", "");
   if (name && name.trim()) addList(name.trim());
 });
+$("newGroupBtn").addEventListener("click", function () {
+  var name = window.prompt("新しいグループの名前を入力してください（例： 持っていくものリスト）", "");
+  if (name && name.trim()) addGroup(name.trim());
+});
+$("groupSelect").addEventListener("change", function () {
+  if (!currentListId) return;
+  setListGroup(currentListId, $("groupSelect").value || null);
+});
 sidebarLists.addEventListener("click", function (e) {
   var t = e.target;
+  var gdel = t.getAttribute && t.getAttribute("data-gdel");
+  if (gdel) { deleteGroup(gdel); return; }
+  var gh = t.closest ? t.closest("[data-group]") : null;
+  var gid = gh ? gh.getAttribute("data-group") : (t.getAttribute && t.getAttribute("data-group"));
+  if (gid) { setGCollapsed(gid, !isGCollapsed(gid)); renderSidebar(); return; }
   var li = t.closest ? t.closest("[data-list]") : null;
   var lid = li ? li.getAttribute("data-list") : (t.getAttribute && t.getAttribute("data-list"));
   if (lid) switchList(lid);
