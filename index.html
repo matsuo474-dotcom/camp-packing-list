@@ -26,14 +26,14 @@
     --green:#2e7d4f; --green-dark:#1f5c39; --bg:#f7f8f7; --card:#ffffff;
     --text:#242424; --muted:#707070; --line:#e6e6e6; --accent:#e8862e;
     --danger:#c0453e; --hover:#f0f4f0; --active:#e3efe6;
-    --side:#fbfcfb; --parent:#f2f6f0; --sub:#eef3ec; --prog:#e4ece2;
+    --side:#fbfcfb; --parent:#cfe7d2; --sub:#eef3ec; --prog:#e4ece2;
     --target-bg:#fdf3e3; --target-line:#f0dcae; --target-ink:#7a5410;
   }
   [data-theme="dark"]{
     --green:#1f5c39; --green-dark:#8fd0a8; --bg:#16171a; --card:#222327;
     --text:#f2f2f2; --muted:#a3a3ab; --line:#3a3b41; --accent:#f09a4a;
     --danger:#e07a72; --hover:#2b2c30; --active:#2f4433;
-    --side:#1c1d20; --parent:#24261f; --sub:#2b2c30; --prog:#33343a;
+    --side:#1c1d20; --parent:#1d4530; --sub:#2b2c30; --prog:#33343a;
     --target-bg:#3a2e14; --target-line:#6b5518; --target-ink:#f0c46b;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
@@ -93,7 +93,7 @@
   ul.items li:last-child{border-bottom:none;}
   ul.items li.parent-row{background:var(--parent);}
   ul.items li.parent-row .name{font-weight:700;}
-  ul.items li.child-row{padding-left:40px;}
+  ul.items li.child-row{padding-left:56px;}
   ul.items li.done .name{color:var(--muted); text-decoration:line-through;}
   ul.items li{user-select:none; -webkit-user-select:none;}
   ul.items li.drag-lift{box-shadow:0 8px 22px rgba(0,0,0,.45); background:var(--card) !important;}
@@ -131,7 +131,7 @@
     .add-bar button{padding:7px 12px; font-size:13px;}
     .add-target-bar{font-size:11px; padding:4px 8px;}
     ul.items li{padding:6px 6px; gap:5px;}
-    ul.items li.child-row{padding-left:26px;}
+    ul.items li.child-row{padding-left:40px;}
     ul.items .name{font-size:13px;}
     .rename-input{font-size:16px !important;}
     .drag-handle{font-size:13px; padding:8px 5px;}
@@ -146,12 +146,11 @@
 <body>
 <header>
   <button id="menuBtn" aria-label="リスト一覧を開く">☰</button>
-  <h1>🎒 持ち物チェック</h1>
+  <h1>持ち物チェック</h1>
   <button id="themeBtn" aria-label="ダークモード切り替え">🌙</button>
 </header>
 <div class="layout">
   <aside id="sidebar">
-    <div class="side-label">家族の持ち物リスト</div>
     <ul class="side-lists" id="sidebarLists"></ul>
     <div class="side-foot">
       <button id="newListBtn">＋ 新しいリスト</button>
@@ -162,7 +161,7 @@
   <main id="mainScroll">
     <div class="main-inner">
       <div class="sticky-top">
-        <h2 class="list-title"><span style="color:var(--green)">☰</span><span id="listTitle">リスト</span></h2>
+        <h2 class="list-title"><span id="listTitle">リスト</span></h2>
         <div class="progress-wrap">
           <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
           <div class="progress-text" id="progressText">0 / 0 個チェック済み</div>
@@ -184,8 +183,6 @@
       <div class="card">
         <div class="toolbar">
           <button id="resetChecksBtn" class="btn-sub">チェックを全部外す</button>
-          <button id="addPresetBtn" class="btn-sub">定番（キャンプ）を追加</button>
-          <button id="clearAllBtn" class="btn-danger">このリストを空にする</button>
           <button id="deleteListBtn" class="btn-danger">このリストを削除</button>
         </div>
       </div>
@@ -347,7 +344,7 @@ function renderMain() {
     html += "</ul>";
   }
   if (!tops.length) {
-    html = '<p class="empty">まだアイテムがありません。上の欄で追加するか、「定番（キャンプ）を追加」から始めてください。</p>';
+    html = '<p class="empty">まだアイテムがありません。上の欄から追加してください。</p>';
   }
   listWrap.innerHTML = html;
   if (renamingId && listWrap.querySelector) {
@@ -1039,12 +1036,6 @@ $("resetChecksBtn").addEventListener("click", function () {
   var patch = {};
   leaves().forEach(function (x) { if (x.item.checked) patch[x.id] = { checked: false }; });
   if (Object.keys(patch).length) updateItems(patch);
-});
-$("addPresetBtn").addEventListener("click", function () { addPresets(); });
-$("clearAllBtn").addEventListener("click", function () {
-  if (!window.confirm("今開いているリストのアイテムをすべて削除します。家族全員の画面からも消えます。よろしいですか？")) return;
-  if (localMode) { localData.items[currentListId] = {}; items = localData.items[currentListId]; addTargetParentId = null; updateTargetBar(); persistLocal(); render(); }
-  else { var r = currentItemsRef(); if (r) r.remove(); }
 });
 $("deleteListBtn").addEventListener("click", deleteCurrentList);
 
