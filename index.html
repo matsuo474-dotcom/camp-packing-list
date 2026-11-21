@@ -446,8 +446,9 @@ function migrateFirebase(rootRef, oldItems) {
     Object.keys(tmp).forEach(function (k) { converted[k] = tmp[k]; });
   }
   var upd = {};
-  upd["lists/" + listId] = { name: "キャンプ", ts: Date.now() };
-  upd["lists/" + listId + "/items"] = converted;
+  var listObj = { name: "キャンプ", ts: Date.now() };
+  listObj.items = converted;
+  upd["lists/" + listId] = listObj;
   upd["items"] = null;
   return rootRef.update(upd);
 }
@@ -480,6 +481,7 @@ function enterRoom(code) {
       render();
     }, function (err) { setConn(false, "接続エラー：" + err.message); });
   }).catch(function () {
+    setConn(false, "接続エラー（移行に失敗しました）");
     listsRef.on("value", function (snap) {
       lists = snap.val() || {};
       if (!currentListId || !lists[currentListId]) {
