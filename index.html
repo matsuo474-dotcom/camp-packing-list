@@ -54,7 +54,9 @@
   ul.side-lists li{display:flex; align-items:center; gap:10px; padding:10px 10px; border-radius:8px; cursor:pointer; font-size:15px; margin-bottom:2px;}
   ul.side-lists li:hover{background:var(--hover);}
   ul.side-lists li.active{background:var(--active); box-shadow:inset 3px 0 0 var(--green); font-weight:600;}
-  ul.side-lists .ic{color:var(--muted); font-size:14px; flex:none;}
+  ul.side-lists .ic{color:var(--muted); font-size:14px; flex:none; touch-action:none; cursor:grab; padding:5px 4px; margin:-5px -2px;}
+  ul.side-lists li.drag-lift{box-shadow:0 8px 22px rgba(0,0,0,.45); background:var(--card) !important; opacity:.96;}
+  ul.side-lists li.group-head.drop-target{box-shadow:inset 0 0 0 2px var(--accent);}
   ul.side-lists .lname{flex:1; word-break:break-all;}
   ul.side-lists .count{flex:none; font-size:13px; color:var(--muted); min-width:18px; text-align:right;}
   ul.side-lists li.in-group{padding-left:28px; font-size:14.5px;}
@@ -327,7 +329,7 @@ function sideListRow(l, inGroup) {
   if (l.id === currentListId) cls = "active";
   if (inGroup) cls = (cls ? cls + " " : "") + "in-group";
   return '<li data-list="' + escapeHtml(l.id) + '"' + (cls ? ' class="' + cls + '"' : "") + '>' +
-    '<span class="ic">☰</span><span class="lname">' + escapeHtml(l.name) + "</span>" +
+    '<span class="ic" data-shandle="1">☰</span><span class="lname">' + escapeHtml(l.name) + "</span>" +
     '<span class="count">' + (n > 0 ? n : "") + "</span></li>";
 }
 function renderSidebar() {
@@ -983,6 +985,7 @@ $("groupSelect").addEventListener("change", function () {
   setListGroup(currentListId, $("groupSelect").value || null);
 });
 sidebarLists.addEventListener("click", function (e) {
+  if (Date.now() < sideClickSuppressUntil) return;
   var t = e.target;
   var gdel = t.getAttribute && t.getAttribute("data-gdel");
   if (gdel) { deleteGroup(gdel); return; }
@@ -992,6 +995,82 @@ sidebarLists.addEventListener("click", function (e) {
   var li = t.closest ? t.closest("[data-list]") : null;
   var lid = li ? li.getAttribute("data-list") : (t.getAttribute && t.getAttribute("data-list"));
   if (lid) switchList(lid);
+});
+
+/* ===== サイドバー：リストをグループへドラッグ ===== */
+var sideDrag = null;
+var sideClickSuppressUntil = 0;
+function clearSideDropMarks() {
+  var heads = sidebarLists.querySelectorAll(".group-head");
+  for (var i = 0; i < heads.length; i++) heads[i].classList.remove("drop-target");
+}
+function sideDragCleanup() {
+  if (!sideDrag) return;
+  var d = sideDrag;
+  sideDrag = null;
+  document.removeEventListener("pointermove", sideDragMove, true);
+  document.removeEventListener("pointerup", sideDragEnd, true);
+  document.removeEventListener("pointercancel", sideDragEnd, true);
+  if (d.li) {
+    d.li.classList.remove("drag-lift");
+    d.li.style.position = "";
+    d.li.style.left = "";
+    d.li.style.top = "";
+    d.li.style.width = "";
+    d.li.style.zIndex = "";
+    d.li.style.pointerEvents = "";
+  }
+  clearSideDropMarks();
+}
+function sideDragMove(e) {
+  if (!sideDrag) return;
+  var d = sideDrag;
+  if (!d.active) {
+    var dx = e.clientX - d.startX, dy = e.clientY - d.startY;
+    if (Math.sqrt(dx * dx + dy * dy) < 6) return;
+    d.active = true;
+    var rect = d.li.getBoundingClientRect();
+    d.grabDX = d.startX - rect.left;
+    d.grabDY = d.startY - rect.top;
+    d.li.classList.add("drag-lift");
+    d.li.style.position = "fixed";
+    d.li.style.width = rect.width + "px";
+    d.li.style.zIndex = "80";
+    d.li.style.pointerEvents = "none";
+    if (navigator.vibrate) { try { navigator.vibrate(10); } catch (err) {} }
+  }
+  d.li.style.left = (e.clientX - d.grabDX) + "px";
+  d.li.style.top = (e.clientY - d.grabDY) + "px";
+  clearSideDropMarks();
+  var under = document.elementFromPoint ? document.elementFromPoint(e.clientX, e.clientY) : null;
+  var gh = under && under.closest ? under.closest("[data-group]") : null;
+  d.targetGid = gh ? gh.getAttribute("data-group") : null;
+  if (gh) gh.classList.add("drop-target");
+}
+function sideDragEnd() {
+  if (!sideDrag) return;
+  var d = sideDrag;
+  var wasActive = d.active;
+  var gid = d.targetGid;
+  sideDragCleanup();
+  if (wasActive) {
+    sideClickSuppressUntil = Date.now() + 350;
+    if (gid && lists[d.lid] && lists[d.lid].groupId !== gid) setListGroup(d.lid, gid);
+    else renderSidebar();
+  }
+}
+sidebarLists.addEventListener("pointerdown", function (e) {
+  if (sideDrag) sideDragCleanup();
+  var t = e.target;
+  if (!t.closest) return;
+  var li = t.closest("[data-list]");
+  if (!li) return;
+  var viaHandle = !!(t.getAttribute && t.getAttribute("data-shandle"));
+  if (e.pointerType === "touch" && !viaHandle) return;
+  sideDrag = { lid: li.getAttribute("data-list"), li: li, startX: e.clientX, startY: e.clientY, active: false, targetGid: null, grabDX: 0, grabDY: 0 };
+  document.addEventListener("pointermove", sideDragMove, true);
+  document.addEventListener("pointerup", sideDragEnd, true);
+  document.addEventListener("pointercancel", sideDragEnd, true);
 });
 $("addBtn").addEventListener("click", function () {
   var name = addName.value.trim();
