@@ -36,37 +36,48 @@
   #sidebarBackdrop{display:none;}
   /* ===== メイン ===== */
   main{flex:1; overflow-y:auto; min-width:0;}
-  .main-inner{max-width:680px; margin:0 auto; padding:18px 14px 44px;}
-  h2.list-title{margin:0 0 4px; font-size:24px; font-weight:700; color:var(--green-dark); display:flex; align-items:center; gap:10px;}
-  .progress-wrap{margin:10px 0 16px;}
+  .main-inner{max-width:680px; margin:0 auto; padding:0 14px 44px;}
+  .sticky-top{position:sticky; top:0; z-index:6; background:var(--bg); padding:14px 0 10px;}
+  h2.list-title{margin:0; font-size:23px; font-weight:700; color:var(--green-dark); display:flex; align-items:center; gap:10px;}
+  .progress-wrap{margin:8px 0 10px;}
   .progress-bar{height:8px; background:#e4ece2; border-radius:99px; overflow:hidden;}
   .progress-fill{height:100%; background:var(--green); width:0%; transition:width .25s;}
-  .progress-text{font-size:13px; color:var(--muted); margin-top:6px;}
+  .progress-text{font-size:12.5px; color:var(--muted); margin-top:5px;}
+  .addbar{display:flex; gap:8px; align-items:center; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:6px 6px 6px 12px;}
+  .addbar .plus{color:var(--green); font-size:19px; font-weight:700; flex:none; line-height:1;}
+  .addbar input[type=text]{flex:1; border:none; padding:8px 0; font-size:16px; background:none; color:var(--text); min-width:0;}
+  .addbar input[type=text]:focus{outline:none;}
+  .addbar button{flex:none; padding:9px 16px;}
+  #addTargetBar{display:flex; align-items:center; gap:8px; margin-top:8px; background:#fdf3e3; border:1px solid #f0dcae; color:#7a5410; border-radius:9px; padding:7px 10px; font-size:13.5px;}
+  #addTargetBar .tname{font-weight:700; flex:1; word-break:break-all;}
+  #addTargetClear{flex:none; background:none; border:none; color:#7a5410; font-size:15px; cursor:pointer; padding:2px 6px;}
   .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:12px;}
   .hidden{display:none !important;}
-  label{font-size:13px; color:var(--muted); display:block; margin-bottom:6px;}
-  input[type=text]{width:100%; padding:11px 12px; font-size:16px; border:1px solid var(--line); border-radius:9px; background:#fff; color:var(--text);}
   button{border:none; border-radius:9px; padding:11px 14px; font-size:15px; font-weight:600; cursor:pointer;}
-  .btn-primary{background:var(--green); color:#fff; width:100%;}
+  .btn-primary{background:var(--green); color:#fff;}
   .btn-primary:active{background:var(--green-dark);}
   .btn-sub{background:#eef3ec; color:var(--green-dark); border:1px solid var(--line);}
   .btn-accent{background:var(--accent); color:#fff; width:100%;}
   .btn-danger{background:#fff; color:var(--danger); border:1px solid var(--line);}
-  .row{display:flex; gap:8px;}
-  .row > *{flex:1;}
-  .msg{font-size:13px; color:var(--danger); min-height:18px; margin-top:8px;}
+  .msg{font-size:13px; color:var(--danger); min-height:16px; margin-top:4px;}
   .note{font-size:12.5px; color:var(--muted); line-height:1.6;}
   ul.items{list-style:none; margin:0 0 12px; padding:0; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden;}
-  ul.items li{display:flex; align-items:center; gap:11px; padding:12px; border-bottom:1px solid var(--line);}
+  ul.items li{display:flex; align-items:center; gap:9px; padding:11px 12px; border-bottom:1px solid var(--line); background:var(--card);}
   ul.items li:last-child{border-bottom:none;}
   ul.items li.parent-row{background:#f2f6f0;}
   ul.items li.parent-row .name{font-weight:700;}
-  ul.items li.child-row{padding-left:38px;}
+  ul.items li.child-row{padding-left:40px;}
   ul.items li.done .name{color:var(--muted); text-decoration:line-through;}
+  ul.items li.dragging{opacity:.45;}
+  ul.items li.drop-target{box-shadow:inset 0 0 0 2px var(--accent);}
   ul.items input[type=checkbox]{appearance:none; -webkit-appearance:none; width:24px; height:24px; flex:none; margin:0; border:2px solid #9db89d; border-radius:50%; background:#fff; cursor:pointer; position:relative;}
   ul.items input[type=checkbox]:checked{background:var(--green); border-color:var(--green);}
   ul.items input[type=checkbox]:checked::after{content:"✓"; position:absolute; inset:0; color:#fff; font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center;}
   ul.items .name{flex:1; font-size:15.5px; word-break:break-all;}
+  ul.items .kidcount{flex:none; font-size:12.5px; color:var(--muted); font-weight:400;}
+  .chev{flex:none; background:none; border:none; color:var(--muted); font-size:13px; padding:4px 2px; cursor:pointer; width:20px;}
+  .handle{flex:none; color:#c3cec1; font-size:15px; padding:6px 2px; cursor:grab; touch-action:none; user-select:none; -webkit-user-select:none;}
+  .handle:active{cursor:grabbing;}
   .mini{flex:none; background:#eef3ec; border:1px solid var(--line); color:var(--green-dark); font-size:12.5px; font-weight:700; padding:6px 9px; border-radius:8px; cursor:pointer;}
   .del{flex:none; background:none; border:none; color:#b9c4b6; font-size:18px; padding:4px 6px; cursor:pointer;}
   .empty{font-size:13.5px; color:var(--muted); padding:10px 2px;}
@@ -99,31 +110,24 @@
     </div>
   </aside>
   <div id="sidebarBackdrop"></div>
-  <main>
+  <main id="mainScroll">
     <div class="main-inner">
-      <h2 class="list-title"><span style="color:var(--green)">☰</span><span id="listTitle">リスト</span></h2>
-      <div class="progress-wrap">
-        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-        <div class="progress-text" id="progressText">0 / 0 個チェック済み</div>
-      </div>
-
-      <div class="card">
-        <label for="addName">アイテムを追加（一番上の階層）</label>
-        <input type="text" id="addName" placeholder="例： 虫よけスプレー">
-        <div style="height:8px"></div>
-        <button id="addBtn" class="btn-primary">＋ 追加する</button>
-        <div id="addMsg" class="msg"></div>
-        <p class="note">アイテムの下に細かいものをぶら下げたいときは、各アイテムの「＋子」ボタンから子アイテムを追加できます（子の下には追加できません）。</p>
-      </div>
-
-      <div class="card hidden" id="childForm">
-        <label for="childName">「<span id="childFormParentName"></span>」の子アイテムを追加</label>
-        <input type="text" id="childName" placeholder="例： 単三電池">
-        <div style="height:8px"></div>
-        <div class="row">
-          <button id="childConfirmBtn" class="btn-primary">追加する</button>
-          <button id="childCancelBtn" class="btn-sub">やめる</button>
+      <div class="sticky-top">
+        <h2 class="list-title"><span style="color:var(--green)">☰</span><span id="listTitle">リスト</span></h2>
+        <div class="progress-wrap">
+          <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+          <div class="progress-text" id="progressText">0 / 0 個チェック済み</div>
         </div>
+        <div class="addbar">
+          <span class="plus">＋</span>
+          <input type="text" id="addName" placeholder="アイテムを追加">
+          <button id="addBtn" class="btn-primary">追加</button>
+        </div>
+        <div id="addTargetBar" class="hidden">
+          <span>追加先：</span><span class="tname" id="addTargetName"></span><span>の子</span>
+          <button id="addTargetClear" aria-label="追加先を解除">✕</button>
+        </div>
+        <div id="addMsg" class="msg"></div>
       </div>
 
       <div id="listWrap"></div>
@@ -135,7 +139,6 @@
           <button id="clearAllBtn" class="btn-danger">このリストを空にする</button>
           <button id="deleteListBtn" class="btn-danger">このリストを削除</button>
         </div>
-        <p class="note" style="margin-top:10px">「チェックを全部外す」は次の準備を始めるときに使ってください。「このリストを空にする」は今開いているリストのアイテムをすべて削除します。「このリストを削除」はリスト自体を消します（家族全員に反映されます）。</p>
       </div>
       <p class="foot-note">チェックや追加は、このリンクを開いている全員の画面にリアルタイムで反映されます。リンクを知っている人は誰でもリストを見たり編集したりできます。</p>
     </div>
@@ -169,6 +172,7 @@ var PRESET_TREE = [
 ];
 var DEFAULT_ROOM = "camp-vv2ru9wh";
 var LS_LOCAL_PREFIX = "packingList.local.";
+var LS_COLLAPSED_PREFIX = "packingList.collapsed.";
 
 /* ===== 状態 ===== */
 var roomCode = null;
@@ -180,7 +184,8 @@ var db = null;
 var listsRef = null;
 var localMode = false;
 var localData = null;    // {lists:{}, items:{listId:{}}, current:""}
-var pendingParentId = null;
+var addTargetParentId = null;
+var collapsedMap = {};   // listId -> {parentId: 1} （この端末だけの表示状態）
 
 /* ===== DOM ===== */
 var $ = function (id) { return document.getElementById(id); };
@@ -189,8 +194,9 @@ var sidebar = $("sidebar"), sidebarLists = $("sidebarLists"), sidebarBackdrop = 
 var listTitle = $("listTitle");
 var progressFill = $("progressFill"), progressText = $("progressText");
 var addName = $("addName"), addMsg = $("addMsg");
+var addTargetBar = $("addTargetBar"), addTargetName = $("addTargetName");
 var listWrap = $("listWrap");
-var childForm = $("childForm"), childFormParentName = $("childFormParentName"), childName = $("childName");
+var mainScroll = $("mainScroll");
 
 /* ===== ユーティリティ ===== */
 function escapeHtml(s) {
@@ -224,6 +230,20 @@ function sortedLists() {
   return Object.keys(lists).map(function (id) { return { id: id, name: lists[id].name, ts: lists[id].ts || 0 }; })
     .sort(function (a, b) { return a.ts - b.ts; });
 }
+function isCollapsed(pid) {
+  return !!(collapsedMap[currentListId] && collapsedMap[currentListId][pid]);
+}
+function setCollapsed(pid, on) {
+  if (!collapsedMap[currentListId]) collapsedMap[currentListId] = {};
+  if (on) collapsedMap[currentListId][pid] = 1; else delete collapsedMap[currentListId][pid];
+  try { localStorage.setItem(LS_COLLAPSED_PREFIX + roomCode, JSON.stringify(collapsedMap)); } catch (e) {}
+}
+function loadCollapsed() {
+  try {
+    var raw = localStorage.getItem(LS_COLLAPSED_PREFIX + roomCode);
+    if (raw) collapsedMap = JSON.parse(raw) || {};
+  } catch (e) {}
+}
 
 /* ===== 描画 ===== */
 function renderSidebar() {
@@ -242,9 +262,12 @@ function itemRow(id, it, isChild) {
   if (kids.length) checked = kids.every(function (k) { return !!k.item.checked; });
   else checked = !!it.checked;
   var cls = (kids.length ? "parent-row" : (isChild ? "child-row" : "")) + (checked ? " done" : "");
-  var html = '<li class="' + cls + '">' +
+  var html = '<li class="' + cls + '" data-id="' + escapeHtml(id) + '" data-parent="' + escapeHtml(it.parentId || "") + '">';
+  if (kids.length) html += '<button class="chev" data-act="collapse" data-id="' + escapeHtml(id) + '">' + (isCollapsed(id) ? "▸" : "▾") + "</button>";
+  html += '<span class="handle" data-handle="1" data-id="' + escapeHtml(id) + '">☰</span>' +
     '<input type="checkbox" data-act="toggle" data-id="' + escapeHtml(id) + '"' + (checked ? " checked" : "") + ">" +
     '<span class="name">' + escapeHtml(it.name) + "</span>";
+  if (kids.length) html += '<span class="kidcount">' + kids.length + "件</span>";
   if (!isChild) html += '<button class="mini" data-act="addchild" data-id="' + escapeHtml(id) + '">＋子</button>';
   html += '<button class="del" data-act="del" data-id="' + escapeHtml(id) + '" aria-label="削除">✕</button></li>';
   return html;
@@ -262,12 +285,14 @@ function renderMain() {
     html += '<ul class="items">';
     tops.forEach(function (t) {
       html += itemRow(t.id, t.item, false);
-      childrenOf(t.id).forEach(function (c) { html += itemRow(c.id, c.item, true); });
+      if (!isCollapsed(t.id)) {
+        childrenOf(t.id).forEach(function (c) { html += itemRow(c.id, c.item, true); });
+      }
     });
     html += "</ul>";
   }
   if (!tops.length) {
-    html = '<p class="empty">まだアイテムがありません。上のフォームで追加するか、「定番（キャンプ）を追加」から始めてください。</p>';
+    html = '<p class="empty">まだアイテムがありません。上の欄で追加するか、「定番（キャンプ）を追加」から始めてください。</p>';
   }
   listWrap.innerHTML = html;
 }
@@ -275,6 +300,17 @@ function render() { renderSidebar(); renderMain(); }
 function closeDrawer() {
   sidebar.classList.remove("open");
   sidebarBackdrop.classList.remove("show");
+}
+function updateTargetBar() {
+  if (addTargetParentId && items[addTargetParentId]) {
+    addTargetName.textContent = items[addTargetParentId].name;
+    addTargetBar.classList.remove("hidden");
+    addName.placeholder = "子アイテムを追加";
+  } else {
+    addTargetParentId = null;
+    addTargetBar.classList.add("hidden");
+    addName.placeholder = "アイテムを追加";
+  }
 }
 
 /* ===== ローカル保存 ===== */
@@ -360,10 +396,10 @@ function syncFromAllData() {
 function switchList(id) {
   if (!lists[id]) return;
   currentListId = id;
-  pendingParentId = null;
-  childForm.classList.add("hidden");
+  addTargetParentId = null;
   if (localMode) { localData.current = id; items = localData.items[id] || {}; persistLocal(); }
   else items = itemsOf(id);
+  updateTargetBar();
   closeDrawer();
   render();
 }
@@ -408,7 +444,8 @@ function pushItem(data) {
   var r = currentItemsRef();
   return r ? r.push(data).key : null;
 }
-function updateItems(patch) {
+function updateFields(patch) {
+  // patch: {itemId: {field: value, ...}}
   if (localMode) {
     Object.keys(patch).forEach(function (id) { if (items[id]) { for (var k in patch[id]) items[id][k] = patch[id][k]; } });
     persistLocal();
@@ -418,10 +455,13 @@ function updateItems(patch) {
   var r = currentItemsRef();
   if (r) {
     var upd = {};
-    Object.keys(patch).forEach(function (id) { upd[id + "/checked"] = patch[id].checked; });
+    Object.keys(patch).forEach(function (id) {
+      Object.keys(patch[id]).forEach(function (f) { upd[id + "/" + f] = patch[id][f]; });
+    });
     r.update(upd);
   }
 }
+function updateItems(patch) { updateFields(patch); }
 function removeItems(ids) {
   if (localMode) {
     ids.forEach(function (id) { delete items[id]; });
@@ -447,6 +487,19 @@ function toggleItem(id, checked) {
     updateItems(p);
   }
 }
+function setSiblingOrder(orderedIds) {
+  var patch = {};
+  orderedIds.forEach(function (id, i) { patch[id] = { ts: (i + 1) * 1000 }; });
+  if (Object.keys(patch).length) updateFields(patch);
+}
+function moveItemToParent(id, newParentId) {
+  var sibs = childrenOf(newParentId);
+  var maxTs = sibs.reduce(function (m, s) { return Math.max(m, s.item.ts || 0); }, 0);
+  var patch = {};
+  patch[id] = { parentId: newParentId, ts: maxTs + 1000 };
+  setCollapsed(newParentId, false);
+  updateFields(patch);
+}
 function addPresets() {
   var existingTop = {};
   topItems().forEach(function (t) { existingTop[t.item.name] = true; });
@@ -459,6 +512,131 @@ function addPresets() {
       pushItem({ name: name, parentId: pid, checked: false, ts: ts + gi * 1000 + i + 1 });
     });
   });
+}
+
+/* ===== ドラッグ並び替え ===== */
+var dragState = null;
+function rowBlock(li) {
+  var els = [li];
+  if (!li.classList.contains("child-row")) {
+    var n = li.nextElementSibling;
+    while (n && n.classList.contains("child-row")) { els.push(n); n = n.nextElementSibling; }
+  }
+  return els;
+}
+function onDragStart(e) {
+  var t = e.target;
+  if (!t.getAttribute || !t.getAttribute("data-handle")) return;
+  var li = t.closest ? t.closest("li") : null;
+  if (!li) return;
+  e.preventDefault();
+  var block = rowBlock(li);
+  block.forEach(function (el) { el.classList.add("dragging"); });
+  dragState = {
+    id: t.getAttribute("data-id"),
+    isChild: li.classList.contains("child-row"),
+    parentId: li.getAttribute("data-parent") || null,
+    block: block,
+    ul: li.parentElement,
+    dropParentId: null,
+    pointerId: e.pointerId
+  };
+  if (t.setPointerCapture && e.pointerId !== undefined) {
+    try { t.setPointerCapture(e.pointerId); } catch (err) {}
+  }
+  t.addEventListener("pointermove", onDragMove);
+  t.addEventListener("pointerup", onDragEnd);
+  t.addEventListener("pointercancel", onDragEnd);
+}
+function clearDropMarks() {
+  var marked = listWrap.querySelectorAll(".drop-target");
+  for (var i = 0; i < marked.length; i++) marked[i].classList.remove("drop-target");
+}
+function onDragMove(e) {
+  if (!dragState) return;
+  var y = e.clientY;
+  // 端末のスクロール（上下端に近づいたら）
+  var mr = mainScroll.getBoundingClientRect();
+  if (y < mr.top + 56) mainScroll.scrollTop -= 10;
+  else if (y > mr.bottom - 56) mainScroll.scrollTop += 10;
+  var ul = dragState.ul;
+  var rows = Array.prototype.slice.call(ul.children);
+  // 子を別の親へ：親行の上にいるか
+  dragState.dropParentId = null;
+  clearDropMarks();
+  if (dragState.isChild) {
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      if (r.classList.contains("child-row") || dragState.block.indexOf(r) >= 0) continue;
+      var pid = r.getAttribute("data-id");
+      if (!pid || pid === dragState.parentId) continue;
+      var rect = r.getBoundingClientRect();
+      if (y >= rect.top && y <= rect.bottom) {
+        dragState.dropParentId = pid;
+        r.classList.add("drop-target");
+        return;
+      }
+    }
+  }
+  // 同じ階層の中で挿入位置を探す
+  var block = dragState.block;
+  var first = block[0], last = block[block.length - 1];
+  var target = null, before = true;
+  for (var j = 0; j < rows.length; j++) {
+    var row = rows[j];
+    if (block.indexOf(row) >= 0) continue;
+    if (dragState.isChild) {
+      if (!row.classList.contains("child-row")) continue;
+      if ((row.getAttribute("data-parent") || null) !== dragState.parentId) continue;
+    } else {
+      if (row.classList.contains("child-row")) continue;
+    }
+    var rc = row.getBoundingClientRect();
+    var mid = rc.top + rc.height / 2;
+    if (y < mid) { target = row; before = true; break; }
+    target = row; before = false;
+  }
+  if (!target) return;
+  if (before) {
+    if (target === first) return;
+    block.forEach(function (el) { ul.insertBefore(el, target); });
+  } else {
+    // target のブロック（親なら子まで）の後ろへ
+    var tBlock = rowBlock(target);
+    var anchor = tBlock[tBlock.length - 1];
+    if (anchor === last) return;
+    var ref = anchor.nextElementSibling;
+    block.forEach(function (el) { ul.insertBefore(el, ref); });
+  }
+}
+function onDragEnd(e) {
+  if (!dragState) return;
+  var t = e.target;
+  t.removeEventListener("pointermove", onDragMove);
+  t.removeEventListener("pointerup", onDragEnd);
+  t.removeEventListener("pointercancel", onDragEnd);
+  var ds = dragState;
+  dragState = null;
+  clearDropMarks();
+  if (ds.isChild && ds.dropParentId) {
+    moveItemToParent(ds.id, ds.dropParentId);
+    return;
+  }
+  // DOMの並びから新しい順序を決める
+  var rows = Array.prototype.slice.call(ds.ul.children);
+  var ordered = [];
+  rows.forEach(function (r) {
+    if (ds.isChild) {
+      if (r.classList.contains("child-row") && (r.getAttribute("data-parent") || null) === ds.parentId) ordered.push(r.getAttribute("data-id"));
+    } else {
+      if (!r.classList.contains("child-row")) ordered.push(r.getAttribute("data-id"));
+    }
+  });
+  var current = (ds.isChild ? childrenOf(ds.parentId) : topItems()).map(function (x) { return x.id; });
+  var changed = ordered.length !== current.length || ordered.some(function (id, i) { return id !== current[i]; });
+  ds.block.forEach(function (el) { el.classList.remove("dragging"); });
+  if (changed) setSiblingOrder(ordered);
+  else render();
 }
 
 /* ===== Firebase移行（旧形式→リスト形式） ===== */
@@ -503,11 +681,13 @@ function attachListsListener() {
     allData = snap.val() || {};
     syncFromAllData();
     setConn(true, "同期中（家族と共有しています）");
+    updateTargetBar();
     render();
   }, function (err) { setConn(false, "接続エラー：" + err.message); });
 }
 function enterRoom(code) {
   roomCode = code;
+  loadCollapsed();
   localMode = !(CONFIG_READY && typeof firebase !== "undefined");
   if (localMode) {
     setConn(false, "ローカルモード（この端末内だけ・同期しません）");
@@ -558,25 +738,22 @@ $("addBtn").addEventListener("click", function () {
   var name = addName.value.trim();
   if (!name) { addMsg.textContent = "アイテム名を入力してください。"; return; }
   addMsg.textContent = "";
-  pushItem({ name: name, parentId: null, checked: false, ts: Date.now() });
+  var pid = null;
+  if (addTargetParentId && items[addTargetParentId] && !items[addTargetParentId].parentId) {
+    pid = addTargetParentId;
+    setCollapsed(pid, false);
+  }
+  pushItem({ name: name, parentId: pid, checked: false, ts: Date.now() });
   addName.value = "";
   addName.focus();
+  if (localMode) render();
 });
 addName.addEventListener("keydown", function (e) { if (e.key === "Enter") $("addBtn").click(); });
-$("childConfirmBtn").addEventListener("click", function () {
-  var name = childName.value.trim();
-  if (!name || !pendingParentId) return;
-  pushItem({ name: name, parentId: pendingParentId, checked: false, ts: Date.now() });
-  childName.value = "";
-  childForm.classList.add("hidden");
-  pendingParentId = null;
+$("addTargetClear").addEventListener("click", function () {
+  addTargetParentId = null;
+  updateTargetBar();
+  addName.focus();
 });
-$("childCancelBtn").addEventListener("click", function () {
-  childForm.classList.add("hidden");
-  pendingParentId = null;
-  childName.value = "";
-});
-childName.addEventListener("keydown", function (e) { if (e.key === "Enter") $("childConfirmBtn").click(); });
 listWrap.addEventListener("click", function (e) {
   var t = e.target;
   var act = t.getAttribute && t.getAttribute("data-act");
@@ -590,11 +767,16 @@ listWrap.addEventListener("click", function (e) {
     } else {
       removeItems([id]);
     }
+    if (addTargetParentId === id) { addTargetParentId = null; updateTargetBar(); }
   } else if (act === "addchild") {
-    pendingParentId = id;
-    childFormParentName.textContent = items[id] ? items[id].name : "";
-    childForm.classList.remove("hidden");
-    childName.focus();
+    addTargetParentId = id;
+    setCollapsed(id, false);
+    updateTargetBar();
+    render();
+    addName.focus();
+  } else if (act === "collapse") {
+    setCollapsed(id, !isCollapsed(id));
+    render();
   }
 });
 listWrap.addEventListener("change", function (e) {
@@ -603,6 +785,7 @@ listWrap.addEventListener("change", function (e) {
     toggleItem(t.getAttribute("data-id"), t.checked);
   }
 });
+listWrap.addEventListener("pointerdown", onDragStart);
 $("resetChecksBtn").addEventListener("click", function () {
   var patch = {};
   leaves().forEach(function (x) { if (x.item.checked) patch[x.id] = { checked: false }; });
@@ -611,7 +794,7 @@ $("resetChecksBtn").addEventListener("click", function () {
 $("addPresetBtn").addEventListener("click", function () { addPresets(); });
 $("clearAllBtn").addEventListener("click", function () {
   if (!window.confirm("今開いているリストのアイテムをすべて削除します。家族全員の画面からも消えます。よろしいですか？")) return;
-  if (localMode) { localData.items[currentListId] = {}; items = localData.items[currentListId]; persistLocal(); render(); }
+  if (localMode) { localData.items[currentListId] = {}; items = localData.items[currentListId]; addTargetParentId = null; updateTargetBar(); persistLocal(); render(); }
   else { var r = currentItemsRef(); if (r) r.remove(); }
 });
 $("deleteListBtn").addEventListener("click", deleteCurrentList);
