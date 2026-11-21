@@ -68,7 +68,8 @@
   ul.items li.parent-row .name{font-weight:700;}
   ul.items li.child-row{padding-left:40px;}
   ul.items li.done .name{color:var(--muted); text-decoration:line-through;}
-  ul.items li.dragging{opacity:.45;}
+  ul.items li{user-select:none; -webkit-user-select:none;}
+  ul.items li.drag-lift{box-shadow:0 8px 22px rgba(0,0,0,.28); background:#fff !important;}
   ul.items li.drop-target{box-shadow:inset 0 0 0 2px var(--accent);}
   ul.items input[type=checkbox]{appearance:none; -webkit-appearance:none; width:24px; height:24px; flex:none; margin:0; border:2px solid #9db89d; border-radius:50%; background:#fff; cursor:pointer; position:relative;}
   ul.items input[type=checkbox]:checked{background:var(--green); border-color:var(--green);}
@@ -514,8 +515,9 @@ function addPresets() {
   });
 }
 
-/* ===== ドラッグ並び替え ===== */
-var dragState = null;
+/* ===== ドラッグ並び替え（MS To Do風： 長押し or ハンドルで開始し、行が指に追従する） ===== */
+var drag = null;
+var dragCandidate = null;
 function rowBlock(li) {
   var els = [li];
   if (!li.classList.contains("child-row")) {
@@ -524,119 +526,158 @@ function rowBlock(li) {
   }
   return els;
 }
-function onDragStart(e) {
-  var t = e.target;
-  if (!t.getAttribute || !t.getAttribute("data-handle")) return;
-  var li = t.closest ? t.closest("li") : null;
-  if (!li) return;
-  e.preventDefault();
-  var block = rowBlock(li);
-  block.forEach(function (el) { el.classList.add("dragging"); });
-  dragState = {
-    id: t.getAttribute("data-id"),
-    isChild: li.classList.contains("child-row"),
-    parentId: li.getAttribute("data-parent") || null,
-    block: block,
-    ul: li.parentElement,
-    dropParentId: null,
-    pointerId: e.pointerId
-  };
-  if (t.setPointerCapture && e.pointerId !== undefined) {
-    try { t.setPointerCapture(e.pointerId); } catch (err) {}
-  }
-  t.addEventListener("pointermove", onDragMove);
-  t.addEventListener("pointerup", onDragEnd);
-  t.addEventListener("pointercancel", onDragEnd);
-}
 function clearDropMarks() {
   var marked = listWrap.querySelectorAll(".drop-target");
   for (var i = 0; i < marked.length; i++) marked[i].classList.remove("drop-target");
 }
-function onDragMove(e) {
-  if (!dragState) return;
-  var y = e.clientY;
-  // 端末のスクロール（上下端に近づいたら）
-  var mr = mainScroll.getBoundingClientRect();
-  if (y < mr.top + 56) mainScroll.scrollTop -= 10;
-  else if (y > mr.bottom - 56) mainScroll.scrollTop += 10;
-  var ul = dragState.ul;
+function isInteractiveTarget(t) {
+  return !!(t.closest && t.closest("input, button, a"));
+}
+function rowFromTarget(t) {
+  return t.closest ? t.closest("li[data-id]") : null;
+}
+function beginDrag(li, clientY) {
+  var block = rowBlock(li);
+  var firstRect = li.getBoundingClientRect();
+  drag = {
+    id: li.getAttribute("data-id"),
+    isChild: li.classList.contains("child-row"),
+    parentId: li.getAttribute("data-parent") || null,
+    block: block,
+    ul: li.parentElement,
+    startY: clientY,
+    startTop: firstRect.top,
+    layoutTop: firstRect.top,
+    dy: 0,
+    dropParentId: null,
+    moved: false
+  };
+  block.forEach(function (el) {
+    el.classList.add("drag-lift");
+    el.style.position = "relative";
+    el.style.zIndex = "5";
+  });
+  if (navigator.vibrate) { try { navigator.vibrate(10); } catch (e) {} }
+}
+function setDragTransform() {
+  if (!drag) return;
+  var tf = "translateY(" + drag.dy + "px)";
+  drag.block.forEach(function (el) { el.style.transform = tf; });
+}
+function flipAnimate(ul, mutate) {
   var rows = Array.prototype.slice.call(ul.children);
-  // 子を別の親へ：親行の上にいるか
-  dragState.dropParentId = null;
+  var tops = {};
+  rows.forEach(function (r) { tops[r.getAttribute("data-id")] = r.getBoundingClientRect().top; });
+  mutate();
+  rows.forEach(function (r) {
+    if (drag && drag.block.indexOf(r) >= 0) return;
+    var old = tops[r.getAttribute("data-id")];
+    if (old === undefined) return;
+    var dy = old - r.getBoundingClientRect().top;
+    if (dy) {
+      r.style.transition = "none";
+      r.style.transform = "translateY(" + dy + "px)";
+      requestAnimationFrame(function () {
+        r.style.transition = "transform 180ms ease";
+        r.style.transform = "";
+      });
+    }
+  });
+}
+function dragMoveTo(clientY) {
+  if (!drag) return;
+  drag.moved = true;
+  var mr = mainScroll.getBoundingClientRect();
+  if (clientY < mr.top + 56) mainScroll.scrollTop -= 12;
+  else if (clientY > mr.bottom - 56) mainScroll.scrollTop += 12;
+  var desired = drag.startTop + (clientY - drag.startY);
+  drag.dy = desired - drag.layoutTop;
+  setDragTransform();
+  drag.dropParentId = null;
   clearDropMarks();
-  if (dragState.isChild) {
+  var rows = Array.prototype.slice.call(drag.ul.children);
+  if (drag.isChild) {
     for (var i = 0; i < rows.length; i++) {
       var r = rows[i];
-      if (r.classList.contains("child-row") || dragState.block.indexOf(r) >= 0) continue;
+      if (r.classList.contains("child-row") || drag.block.indexOf(r) >= 0) continue;
       var pid = r.getAttribute("data-id");
-      if (!pid || pid === dragState.parentId) continue;
+      if (!pid || pid === drag.parentId) continue;
       var rect = r.getBoundingClientRect();
-      if (y >= rect.top && y <= rect.bottom) {
-        dragState.dropParentId = pid;
+      if (clientY >= rect.top && clientY <= rect.bottom) {
+        drag.dropParentId = pid;
         r.classList.add("drop-target");
         return;
       }
     }
   }
-  // 同じ階層の中で挿入位置を探す
-  var block = dragState.block;
-  var first = block[0], last = block[block.length - 1];
   var target = null, before = true;
   for (var j = 0; j < rows.length; j++) {
     var row = rows[j];
-    if (block.indexOf(row) >= 0) continue;
-    if (dragState.isChild) {
+    if (drag.block.indexOf(row) >= 0) continue;
+    if (drag.isChild) {
       if (!row.classList.contains("child-row")) continue;
-      if ((row.getAttribute("data-parent") || null) !== dragState.parentId) continue;
+      if ((row.getAttribute("data-parent") || null) !== drag.parentId) continue;
     } else {
       if (row.classList.contains("child-row")) continue;
     }
     var rc = row.getBoundingClientRect();
     var mid = rc.top + rc.height / 2;
-    if (y < mid) { target = row; before = true; break; }
+    if (clientY < mid) { target = row; before = true; break; }
     target = row; before = false;
   }
   if (!target) return;
+  var first = drag.block[0], last = drag.block[drag.block.length - 1];
+  var insertion = null;
   if (before) {
     if (target === first) return;
-    block.forEach(function (el) { ul.insertBefore(el, target); });
+    insertion = function () { drag.block.forEach(function (el) { drag.ul.insertBefore(el, target); }); };
   } else {
-    // target のブロック（親なら子まで）の後ろへ
     var tBlock = rowBlock(target);
     var anchor = tBlock[tBlock.length - 1];
     if (anchor === last) return;
     var ref = anchor.nextElementSibling;
-    block.forEach(function (el) { ul.insertBefore(el, ref); });
+    insertion = function () { drag.block.forEach(function (el) { drag.ul.insertBefore(el, ref); }); };
   }
+  flipAnimate(drag.ul, insertion);
+  drag.block.forEach(function (el) { el.style.transform = ""; });
+  drag.layoutTop = drag.block[0].getBoundingClientRect().top;
+  drag.dy = desired - drag.layoutTop;
+  setDragTransform();
 }
-function onDragEnd(e) {
-  if (!dragState) return;
-  var t = e.target;
-  t.removeEventListener("pointermove", onDragMove);
-  t.removeEventListener("pointerup", onDragEnd);
-  t.removeEventListener("pointercancel", onDragEnd);
-  var ds = dragState;
-  dragState = null;
+function endDrag() {
+  if (!drag) return;
+  var ds = drag;
+  drag = null;
   clearDropMarks();
-  if (ds.isChild && ds.dropParentId) {
-    moveItemToParent(ds.id, ds.dropParentId);
-    return;
+  var finish = function () {
+    ds.block.forEach(function (el) {
+      el.classList.remove("drag-lift");
+      el.style.transform = "";
+      el.style.transition = "";
+      el.style.position = "";
+      el.style.zIndex = "";
+    });
+    if (ds.isChild && ds.dropParentId) { moveItemToParent(ds.id, ds.dropParentId); return; }
+    var rows = Array.prototype.slice.call(ds.ul.children);
+    var ordered = [];
+    rows.forEach(function (r) {
+      if (ds.isChild) {
+        if (r.classList.contains("child-row") && (r.getAttribute("data-parent") || null) === ds.parentId) ordered.push(r.getAttribute("data-id"));
+      } else {
+        if (!r.classList.contains("child-row")) ordered.push(r.getAttribute("data-id"));
+      }
+    });
+    var current = (ds.isChild ? childrenOf(ds.parentId) : topItems()).map(function (x) { return x.id; });
+    var changed = ordered.length !== current.length || ordered.some(function (id, i) { return id !== current[i]; });
+    if (changed) setSiblingOrder(ordered);
+    else render();
+  };
+  if (ds.moved) {
+    ds.block.forEach(function (el) { el.style.transition = "transform 180ms ease"; el.style.transform = "translateY(0px)"; });
+    setTimeout(finish, 190);
+  } else {
+    finish();
   }
-  // DOMの並びから新しい順序を決める
-  var rows = Array.prototype.slice.call(ds.ul.children);
-  var ordered = [];
-  rows.forEach(function (r) {
-    if (ds.isChild) {
-      if (r.classList.contains("child-row") && (r.getAttribute("data-parent") || null) === ds.parentId) ordered.push(r.getAttribute("data-id"));
-    } else {
-      if (!r.classList.contains("child-row")) ordered.push(r.getAttribute("data-id"));
-    }
-  });
-  var current = (ds.isChild ? childrenOf(ds.parentId) : topItems()).map(function (x) { return x.id; });
-  var changed = ordered.length !== current.length || ordered.some(function (id, i) { return id !== current[i]; });
-  ds.block.forEach(function (el) { el.classList.remove("dragging"); });
-  if (changed) setSiblingOrder(ordered);
-  else render();
 }
 
 /* ===== Firebase移行（旧形式→リスト形式） ===== */
@@ -785,7 +826,80 @@ listWrap.addEventListener("change", function (e) {
     toggleItem(t.getAttribute("data-id"), t.checked);
   }
 });
-listWrap.addEventListener("pointerdown", onDragStart);
+/* ドラッグ開始の配線： マウスは少し動かしたら、タッチは長押し（ハンドルは即時） */
+listWrap.addEventListener("pointerdown", function (e) {
+  if (e.pointerType !== "mouse") return;
+  if (isInteractiveTarget(e.target)) return;
+  var li = rowFromTarget(e.target);
+  if (!li) return;
+  e.preventDefault();
+  dragCandidate = { li: li, x: e.clientX, y: e.clientY, mouse: true };
+});
+window.addEventListener("pointermove", function (e) {
+  if (e.pointerType === "touch") return;
+  if (drag) { dragMoveTo(e.clientY); return; }
+  if (dragCandidate && dragCandidate.mouse) {
+    if (Math.abs(e.clientY - dragCandidate.y) > 5 || Math.abs(e.clientX - dragCandidate.x) > 5) {
+      var li = dragCandidate.li;
+      dragCandidate = null;
+      beginDrag(li, e.clientY);
+      dragMoveTo(e.clientY);
+    }
+  }
+});
+window.addEventListener("pointerup", function () {
+  if (drag) endDrag();
+  dragCandidate = null;
+});
+window.addEventListener("pointercancel", function () {
+  if (drag) endDrag();
+  dragCandidate = null;
+});
+listWrap.addEventListener("touchstart", function (e) {
+  if (drag) return;
+  var t = e.target;
+  if (isInteractiveTarget(t)) return;
+  var li = rowFromTarget(t);
+  if (!li) return;
+  var touch = e.touches[0];
+  var immediate = !!(t.getAttribute && t.getAttribute("data-handle"));
+  dragCandidate = { li: li, x: touch.clientX, y: touch.clientY, touch: true, timer: null };
+  if (!immediate) {
+    dragCandidate.timer = setTimeout(function () {
+      if (dragCandidate && dragCandidate.touch) {
+        beginDrag(dragCandidate.li, dragCandidate.y);
+        dragCandidate = null;
+      }
+    }, 400);
+  }
+}, { passive: true });
+listWrap.addEventListener("touchmove", function (e) {
+  if (drag) {
+    e.preventDefault();
+    dragMoveTo(e.touches[0].clientY);
+    return;
+  }
+  if (dragCandidate && dragCandidate.touch) {
+    var touch = e.touches[0];
+    var movedFar = Math.abs(touch.clientY - dragCandidate.y) > 12 || Math.abs(touch.clientX - dragCandidate.x) > 12;
+    if (dragCandidate.timer) {
+      if (movedFar) { clearTimeout(dragCandidate.timer); dragCandidate = null; }
+    } else if (movedFar) {
+      var li = dragCandidate.li;
+      dragCandidate = null;
+      beginDrag(li, touch.clientY);
+      e.preventDefault();
+      dragMoveTo(touch.clientY);
+    }
+  }
+}, { passive: false });
+function onTouchEnd() {
+  if (dragCandidate && dragCandidate.timer) clearTimeout(dragCandidate.timer);
+  dragCandidate = null;
+  if (drag) endDrag();
+}
+listWrap.addEventListener("touchend", onTouchEnd);
+listWrap.addEventListener("touchcancel", onTouchEnd);
 $("resetChecksBtn").addEventListener("click", function () {
   var patch = {};
   leaves().forEach(function (x) { if (x.item.checked) patch[x.id] = { checked: false }; });
