@@ -40,11 +40,9 @@
   html,body{height:100%;}
   body{margin:0; font-family:"Segoe UI","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif; background:var(--bg); color:var(--text); display:flex; flex-direction:column;}
   header{background:var(--green); color:#fff; padding:10px 14px; display:flex; align-items:center; gap:10px; z-index:20;}
-  header h1{margin:0; font-size:17px; font-weight:600; flex:1;}
+  header h1{margin:0; font-size:17px; font-weight:600; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   #menuBtn{display:none; background:none; border:none; color:#fff; font-size:21px; cursor:pointer; padding:4px 6px; line-height:1;}
   #themeBtn{margin-left:auto; background:none; border:none; color:#fff; font-size:18px; cursor:pointer; padding:4px 6px; line-height:1;}
-  header .conn{margin-left:0;}
-  #themeBtn + .conn{margin-left:0;}
   .conn{font-size:12px; opacity:.92; white-space:nowrap;}
   .conn .dot{display:inline-block; width:8px; height:8px; border-radius:99px; background:#cfd8cc; margin-right:4px; vertical-align:1px;}
   .conn.on .dot{background:#8be09e;}
@@ -125,7 +123,7 @@
   }
   /* スマホでは文字と余白を小さくして見通しを良くする */
   @media (max-width: 760px) {
-    header.top h1{font-size:15px;}
+    header h1{font-size:15px;}
     .conn{font-size:11px;}
     .list-title{font-size:16px;}
     .progress{font-size:11px;}
@@ -150,7 +148,6 @@
   <button id="menuBtn" aria-label="リスト一覧を開く">☰</button>
   <h1>🎒 持ち物チェック</h1>
   <button id="themeBtn" aria-label="ダークモード切り替え">🌙</button>
-  <span class="conn" id="connStatus"><span class="dot"></span><span id="connText">接続中…</span></span>
 </header>
 <div class="layout">
   <aside id="sidebar">
@@ -325,7 +322,7 @@ function itemRow(id, it, isChild) {
     html += '<span class="name" data-act="rename" data-id="' + escapeHtml(id) + '">' + escapeHtml(it.name) + "</span>";
   }
   if (kids.length) html += '<span class="kidcount">' + kids.length + "件</span>";
-  if (!isChild) html += '<button class="mini" data-act="addchild" data-id="' + escapeHtml(id) + '">＋子</button>';
+  if (!isChild) html += '<button class="mini" data-act="addchild" data-id="' + escapeHtml(id) + '">子を追加</button>';
   html += '<button class="del" data-act="del" data-id="' + escapeHtml(id) + '" aria-label="削除">✕</button></li>';
   return html;
 }
@@ -442,6 +439,7 @@ function loadLocal() {
 
 /* ===== 保存層 ===== */
 function setConn(on, text) {
+  if (!connStatus || !connText) return;
   connStatus.className = "conn" + (on ? " on" : "");
   connText.textContent = text;
 }
