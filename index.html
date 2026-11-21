@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>キャンプ持ち物チェック</title>
+<title>持ち物チェック</title>
 <style>
   :root{
     --green:#2e7d4f; --green-dark:#1f5c39; --bg:#f4f7f2; --card:#ffffff;
@@ -20,7 +20,6 @@
   .hidden{display:none !important;}
   label{font-size:13px; color:var(--muted); display:block; margin-bottom:6px;}
   input[type=text]{width:100%; padding:11px 12px; font-size:16px; border:1px solid var(--line); border-radius:9px; background:#fff; color:var(--text);}
-  select{padding:11px 10px; font-size:15px; border:1px solid var(--line); border-radius:9px; background:#fff; color:var(--text);}
   button{border:none; border-radius:9px; padding:11px 14px; font-size:15px; font-weight:600; cursor:pointer;}
   .btn-primary{background:var(--green); color:#fff; width:100%;}
   .btn-primary:active{background:var(--green-dark);}
@@ -36,18 +35,24 @@
   .progress-fill{height:100%; background:var(--green); width:0%; transition:width .25s;}
   .progress-text{font-size:13px; color:var(--muted); margin-top:6px;}
   .roomline{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
-  .roomcode{font-weight:700; font-size:16px; background:#eef3ec; border:1px dashed var(--green); color:var(--green-dark); padding:5px 10px; border-radius:8px; letter-spacing:.04em;}
   .conn{font-size:12px; color:var(--muted);}
   .conn .dot{display:inline-block; width:8px; height:8px; border-radius:99px; background:#b6c2b2; margin-right:4px; vertical-align:1px;}
   .conn.on .dot{background:#43a35f;}
-  .cat-title{font-size:14px; font-weight:700; margin:16px 2px 8px; color:var(--green-dark); display:flex; justify-content:space-between; align-items:baseline;}
-  .cat-title span{font-size:12px; color:var(--muted); font-weight:400;}
+  .chips{display:flex; gap:8px; overflow-x:auto; padding:2px 0 6px; -webkit-overflow-scrolling:touch;}
+  .chip{flex:none; padding:9px 14px; border-radius:99px; border:1px solid var(--line); background:#fff; color:var(--text); font-size:14.5px; font-weight:600; cursor:pointer;}
+  .chip.active{background:var(--green); border-color:var(--green); color:#fff;}
+  .chip.add{background:#eef3ec; color:var(--green-dark); border-style:dashed;}
   ul.items{list-style:none; margin:0; padding:0; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden;}
   ul.items li{display:flex; align-items:center; gap:10px; padding:11px 12px; border-bottom:1px solid var(--line);}
   ul.items li:last-child{border-bottom:none;}
+  ul.items li.parent-row{background:#f2f6f0;}
+  ul.items li.parent-row .name{font-weight:700;}
+  ul.items li.child-row{padding-left:34px; background:#fff;}
+  ul.items li.child-row .name{font-size:15px;}
   ul.items li.done .name{color:var(--muted); text-decoration:line-through;}
   ul.items input[type=checkbox]{width:22px; height:22px; accent-color:var(--green); flex:none; margin:0;}
   ul.items .name{flex:1; font-size:15.5px; word-break:break-all;}
+  .mini{flex:none; background:#eef3ec; border:1px solid var(--line); color:var(--green-dark); font-size:12.5px; font-weight:700; padding:6px 9px; border-radius:8px; cursor:pointer;}
   .del{flex:none; background:none; border:none; color:#b9c4b6; font-size:18px; padding:4px 6px; cursor:pointer;}
   .empty{font-size:13.5px; color:var(--muted); padding:10px 2px;}
   .toolbar{display:flex; gap:8px; flex-wrap:wrap;}
@@ -57,31 +62,18 @@
 </head>
 <body>
 <header>
-  <h1>🏕️ キャンプ持ち物チェック</h1>
+  <h1>🎒 持ち物チェック</h1>
   <div class="sub">家族みんなで同じリストを見て、チェックがその場で共有されます</div>
 </header>
 <main>
-  <!-- 合言葉ゲート（現在は未使用：リンクを開けばそのまま使える） -->
-  <section id="roomGate" class="card hidden">
-    <label for="roomCodeInput">合言葉（部屋コード）</label>
-    <input type="text" id="roomCodeInput" placeholder="例： matsuo-camp" autocomplete="off">
-    <div style="height:10px"></div>
-    <div class="row">
-      <button id="joinRoomBtn" class="btn-primary">この合言葉で入る</button>
-    </div>
-    <div style="height:8px"></div>
-    <button id="createRoomBtn" class="btn-sub" style="width:100%">新しいリストを作る（合言葉を自動発行）</button>
-    <div id="gateMsg" class="msg"></div>
-    <p class="note">家族で同じ合言葉を使うと、同じリストを共有できます。誰かがアイテムをチェックすると、全員の画面にすぐ反映されます。合言葉は半角英数字・ハイフン・アンダーバー、3〜32文字です。</p>
-  </section>
-
-  <!-- 本体 -->
-  <section id="appMain" class="hidden">
+  <section id="appMain">
     <div class="card">
       <div class="roomline">
         <span style="font-size:14px; font-weight:700">家族の持ち物リスト</span>
         <span class="conn" id="connStatus"><span class="dot"></span><span id="connText">接続中…</span></span>
       </div>
+      <div style="height:8px"></div>
+      <div class="chips" id="listChips"></div>
       <div class="progress-wrap">
         <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
         <div class="progress-text" id="progressText">0 / 0 個チェック済み</div>
@@ -91,14 +83,22 @@
     </div>
 
     <div class="card">
-      <label for="addName">アイテムを追加</label>
-      <div class="row" style="align-items:stretch">
-        <input type="text" id="addName" placeholder="例： 虫よけスプレー" style="flex:2">
-        <select id="addCat" style="flex:1.4"></select>
-      </div>
+      <label for="addName">アイテムを追加（一番上の階層）</label>
+      <input type="text" id="addName" placeholder="例： 虫よけスプレー">
       <div style="height:8px"></div>
       <button id="addBtn" class="btn-primary">＋ 追加する</button>
       <div id="addMsg" class="msg"></div>
+      <p class="note">アイテムの下に細かいものをぶら下げたいときは、各アイテムの「＋子」ボタンから子アイテムを追加できます（子の下には追加できません）。</p>
+    </div>
+
+    <div class="card hidden" id="childForm">
+      <label for="childName">「<span id="childFormParentName"></span>」の子アイテムを追加</label>
+      <input type="text" id="childName" placeholder="例： 単三電池">
+      <div style="height:8px"></div>
+      <div class="row">
+        <button id="childConfirmBtn" class="btn-primary">追加する</button>
+        <button id="childCancelBtn" class="btn-sub">やめる</button>
+      </div>
     </div>
 
     <div id="listWrap"></div>
@@ -106,10 +106,11 @@
     <div class="card">
       <div class="toolbar">
         <button id="resetChecksBtn" class="btn-sub">チェックを全部外す</button>
-        <button id="addPresetBtn" class="btn-sub">定番アイテムを追加</button>
-        <button id="clearAllBtn" class="btn-danger">リストを空にする</button>
+        <button id="addPresetBtn" class="btn-sub">定番（キャンプ）を追加</button>
+        <button id="clearAllBtn" class="btn-danger">このリストを空にする</button>
+        <button id="deleteListBtn" class="btn-danger">このリストを削除</button>
       </div>
-      <p class="note" style="margin-top:10px">「チェックを全部外す」は次のキャンプの準備を始めるときに使ってください。「リストを空にする」はアイテム自体をすべて削除します（家族全員に反映されます）。</p>
+      <p class="note" style="margin-top:10px">「チェックを全部外す」は次の準備を始めるときに使ってください。「このリストを空にする」は今開いているリストのアイテムをすべて削除します。「このリストを削除」はリスト自体を消します（家族全員に反映されます）。</p>
     </div>
   </section>
 </main>
@@ -121,7 +122,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
 <script>
 "use strict";
-/* ===== Firebase設定（デプロイ時に実値を入れる） ===== */
+/* ===== Firebase設定 ===== */
 var FIREBASE_CONFIG = {
   apiKey: "AIzaSyCGDTToPt_XkJf6UM9FFPfxs4vGR7qF0Es",
   authDomain: "camp-packing-list.firebaseapp.com",
@@ -134,43 +135,36 @@ var FIREBASE_CONFIG = {
 var CONFIG_READY = FIREBASE_CONFIG.apiKey.indexOf("__") !== 0;
 
 /* ===== 定数 ===== */
-var CATEGORIES = ["テント・寝具", "調理・食事", "火・照明・電源", "衣類・身の回り", "遊び・その他"];
-var PRESETS = [
-  ["テント", "テント・寝具"], ["グランドシート", "テント・寝具"], ["ペグ・ハンマー", "テント・寝具"],
-  ["寝袋", "テント・寝具"], ["マット", "テント・寝具"], ["枕", "テント・寝具"],
-  ["バーナー・ガス缶", "調理・食事"], ["クッカー", "調理・食事"], ["食器・カトラリー", "調理・食事"],
-  ["クーラーボックス", "調理・食事"], ["保冷剤", "調理・食事"], ["調味料", "調理・食事"], ["ゴミ袋", "調理・食事"],
-  ["ランタン", "火・照明・電源"], ["ヘッドライト", "火・照明・電源"], ["モバイルバッテリー", "火・照明・電源"],
-  ["充電ケーブル", "火・照明・電源"], ["着火ライター", "火・照明・電源"], ["焚き火台", "火・照明・電源"], ["薪・炭", "火・照明・電源"],
-  ["着替え", "衣類・身の回り"], ["防寒着", "衣類・身の回り"], ["レインウェア", "衣類・身の回り"],
-  ["タオル", "衣類・身の回り"], ["日焼け止め", "衣類・身の回り"], ["虫よけ", "衣類・身の回り"],
-  ["常備薬", "衣類・身の回り"], ["ティッシュ・ウェットティッシュ", "衣類・身の回り"],
-  ["チェア", "遊び・その他"], ["テーブル", "遊び・その他"], ["レジャーシート", "遊び・その他"], ["救急セット", "遊び・その他"]
+var MIGRATION_CATS = ["テント・寝具", "調理・食事", "火・照明・電源", "衣類・身の回り", "遊び・その他"];
+var PRESET_TREE = [
+  { name: "テント・寝具", children: ["テント", "グランドシート", "ペグ・ハンマー", "寝袋", "マット", "枕"] },
+  { name: "調理・食事", children: ["バーナー・ガス缶", "クッカー", "食器・カトラリー", "クーラーボックス", "保冷剤", "調味料", "ゴミ袋"] },
+  { name: "火・照明・電源", children: ["ランタン", "ヘッドライト", "モバイルバッテリー", "充電ケーブル", "着火ライター", "焚き火台", "薪・炭"] },
+  { name: "衣類・身の回り", children: ["着替え", "防寒着", "レインウェア", "タオル", "日焼け止め", "虫よけ", "常備薬", "ティッシュ・ウェットティッシュ"] },
+  { name: "遊び・その他", children: ["チェア", "テーブル", "レジャーシート", "救急セット"] }
 ];
-var LS_ROOM = "packingList.room";
+var DEFAULT_ROOM = "camp-vv2ru9wh";
 var LS_LOCAL_PREFIX = "packingList.local.";
 
 /* ===== 状態 ===== */
 var roomCode = null;
-var items = {};        // id -> {name, cat, checked, ts}
-var db = null;         // firebase database
-var itemsRef = null;
+var lists = {};          // listId -> {name, ts}
+var currentListId = null;
+var items = {};          // itemId -> {name, parentId, checked, ts} （現在のリスト分）
+var db = null;
+var listsRef = null, itemsRef = null;
 var localMode = false;
+var localData = null;    // {lists:{}, items:{listId:{}}, current:""}
+var pendingParentId = null;
 
 /* ===== DOM ===== */
 var $ = function (id) { return document.getElementById(id); };
-var roomGate = $("roomGate"), appMain = $("appMain");
-var roomCodeInput = $("roomCodeInput"), gateMsg = $("gateMsg");
 var connStatus = $("connStatus"), connText = $("connText");
+var listChips = $("listChips");
 var progressFill = $("progressFill"), progressText = $("progressText");
-var addName = $("addName"), addCat = $("addCat"), addMsg = $("addMsg");
+var addName = $("addName"), addMsg = $("addMsg");
 var listWrap = $("listWrap");
-
-CATEGORIES.forEach(function (c) {
-  var o = document.createElement("option");
-  o.value = c; o.textContent = c;
-  addCat.appendChild(o);
-});
+var childForm = $("childForm"), childFormParentName = $("childFormParentName"), childName = $("childName");
 
 /* ===== ユーティリティ ===== */
 function escapeHtml(s) {
@@ -179,141 +173,329 @@ function escapeHtml(s) {
   });
 }
 function validRoomCode(code) { return /^[A-Za-z0-9_-]{3,32}$/.test(code); }
-function genRoomCode() {
-  var chars = "abcdefghjkmnpqrstuvwxyz23456789", out = "";
-  for (var i = 0; i < 8; i++) out += chars.charAt(Math.floor(Math.random() * chars.length));
-  return "camp-" + out;
+function localId() { return "id-" + Date.now() + "-" + Math.floor(Math.random() * 1e9); }
+function childrenOf(pid) {
+  return Object.keys(items).filter(function (id) { return (items[id].parentId || null) === pid; })
+    .map(function (id) { return { id: id, item: items[id] }; })
+    .sort(function (a, b) { return (a.item.ts || 0) - (b.item.ts || 0); });
 }
-function sortedItems() {
-  var arr = Object.keys(items).map(function (id) {
-    var it = items[id]; return { id: id, name: it.name, cat: it.cat, checked: !!it.checked, ts: it.ts || 0 };
-  });
-  arr.sort(function (a, b) {
-    var ca = CATEGORIES.indexOf(a.cat), cb = CATEGORIES.indexOf(b.cat);
-    if (ca !== cb) return ca - cb;
-    return a.ts - b.ts;
-  });
-  return arr;
+function topItems() { return childrenOf(null); }
+function leaves() {
+  return Object.keys(items).filter(function (id) { return childrenOf(id).length === 0; })
+    .map(function (id) { return { id: id, item: items[id] }; });
+}
+function sortedLists() {
+  return Object.keys(lists).map(function (id) { return { id: id, name: lists[id].name, ts: lists[id].ts || 0 }; })
+    .sort(function (a, b) { return a.ts - b.ts; });
 }
 
 /* ===== 描画 ===== */
-function render() {
-  var arr = sortedItems();
-  var done = arr.filter(function (i) { return i.checked; }).length;
-  progressText.textContent = done + " / " + arr.length + " 個チェック済み";
-  progressFill.style.width = arr.length ? Math.round(done / arr.length * 100) + "%" : "0%";
+function renderLists() {
   var html = "";
-  CATEGORIES.forEach(function (cat) {
-    var inCat = arr.filter(function (i) { return i.cat === cat; });
-    if (!inCat.length) return;
-    var d = inCat.filter(function (i) { return i.checked; }).length;
-    html += '<div class="cat-title">' + escapeHtml(cat) + "<span>" + d + " / " + inCat.length + "</span></div>";
+  sortedLists().forEach(function (l) {
+    html += '<button class="chip' + (l.id === currentListId ? " active" : "") + '" data-list="' + escapeHtml(l.id) + '">' + escapeHtml(l.name) + "</button>";
+  });
+  html += '<button class="chip add" id="addListBtn">＋ リスト追加</button>';
+  listChips.innerHTML = html;
+}
+function itemRow(id, it, isChild) {
+  var kids = childrenOf(id);
+  var checked;
+  if (kids.length) checked = kids.every(function (k) { return !!k.item.checked; });
+  else checked = !!it.checked;
+  var cls = (kids.length ? "parent-row" : (isChild ? "child-row" : "")) + (checked ? " done" : "");
+  var html = '<li class="' + cls + '">' +
+    '<input type="checkbox" data-act="toggle" data-id="' + escapeHtml(id) + '"' + (checked ? " checked" : "") + ">" +
+    '<span class="name">' + escapeHtml(it.name) + "</span>";
+  if (!isChild) html += '<button class="mini" data-act="addchild" data-id="' + escapeHtml(id) + '">＋子</button>';
+  html += '<button class="del" data-act="del" data-id="' + escapeHtml(id) + '" aria-label="削除">✕</button></li>';
+  return html;
+}
+function render() {
+  renderLists();
+  var lv = leaves();
+  var done = lv.filter(function (x) { return !!x.item.checked; }).length;
+  progressText.textContent = done + " / " + lv.length + " 個チェック済み";
+  progressFill.style.width = lv.length ? Math.round(done / lv.length * 100) + "%" : "0%";
+  var html = "";
+  var tops = topItems();
+  if (tops.length) {
     html += '<ul class="items">';
-    inCat.forEach(function (i) {
-      html += '<li class="' + (i.checked ? "done" : "") + '">' +
-        '<input type="checkbox" data-act="toggle" data-id="' + escapeHtml(i.id) + '"' + (i.checked ? " checked" : "") + ">" +
-        '<span class="name">' + escapeHtml(i.name) + "</span>" +
-        '<button class="del" data-act="del" data-id="' + escapeHtml(i.id) + '" aria-label="削除">✕</button></li>';
+    tops.forEach(function (t) {
+      html += itemRow(t.id, t.item, false);
+      childrenOf(t.id).forEach(function (c) { html += itemRow(c.id, c.item, true); });
     });
     html += "</ul>";
-  });
-  if (!arr.length) {
-    html = '<p class="empty">まだアイテムがありません。下の「定番アイテムを追加」から始めるか、上のフォームで追加してください。</p>';
+  }
+  if (!tops.length) {
+    html = '<p class="empty">まだアイテムがありません。上のフォームで追加するか、「定番（キャンプ）を追加」から始めてください。</p>';
   }
   listWrap.innerHTML = html;
 }
 
-/* ===== 保存層 ===== */
+/* ===== ローカル保存 ===== */
 function persistLocal() {
-  try { localStorage.setItem(LS_LOCAL_PREFIX + roomCode, JSON.stringify(items)); } catch (e) {}
+  try { localStorage.setItem(LS_LOCAL_PREFIX + roomCode, JSON.stringify(localData)); } catch (e) {}
+}
+function convertOldItems(oldItems) {
+  // 旧形式（カテゴリ付きフラット）→ 親子ツリー。{itemsObj, } を返す
+  var out = {};
+  var byCat = {};
+  Object.keys(oldItems || {}).forEach(function (id) {
+    var it = oldItems[id];
+    var cat = MIGRATION_CATS.indexOf(it.cat) >= 0 ? it.cat : "遊び・その他";
+    (byCat[cat] = byCat[cat] || []).push(it);
+  });
+  var ts = Date.now();
+  MIGRATION_CATS.forEach(function (cat, ci) {
+    var arr = byCat[cat];
+    if (!arr || !arr.length) return;
+    arr.sort(function (a, b) { return (a.ts || 0) - (b.ts || 0); });
+    var pid = localId() + "-p" + ci;
+    out[pid] = { name: cat, parentId: null, checked: false, ts: ts + ci * 1000 };
+    arr.forEach(function (it, i) {
+      out[localId() + "-c" + ci + "-" + i] = { name: it.name, parentId: pid, checked: !!it.checked, ts: ts + ci * 1000 + i + 1 };
+    });
+  });
+  return out;
+}
+function presetItemsObj() {
+  var out = {};
+  var ts = Date.now();
+  PRESET_TREE.forEach(function (g, gi) {
+    var pid = localId() + "-pp" + gi;
+    out[pid] = { name: g.name, parentId: null, checked: false, ts: ts + gi * 1000 };
+    g.children.forEach(function (name, i) {
+      out[localId() + "-pc" + gi + "-" + i] = { name: name, parentId: pid, checked: false, ts: ts + gi * 1000 + i + 1 };
+    });
+  });
+  return out;
 }
 function loadLocal() {
-  try {
-    var raw = localStorage.getItem(LS_LOCAL_PREFIX + roomCode);
-    items = raw ? JSON.parse(raw) : {};
-  } catch (e) { items = {}; }
+  var raw = null;
+  try { raw = localStorage.getItem(LS_LOCAL_PREFIX + roomCode); } catch (e) {}
+  var parsed = null;
+  if (raw) { try { parsed = JSON.parse(raw); } catch (e) {} }
+  if (parsed && parsed.lists) {
+    localData = parsed;
+  } else if (parsed && Object.keys(parsed).length) {
+    // 旧形式からの移行
+    var lid = localId() + "-list";
+    localData = { lists: {}, items: {}, current: lid };
+    localData.lists[lid] = { name: "キャンプ", ts: Date.now() };
+    localData.items[lid] = convertOldItems(parsed);
+    persistLocal();
+  } else {
+    var lid2 = localId() + "-list";
+    localData = { lists: {}, items: {}, current: lid2 };
+    localData.lists[lid2] = { name: "キャンプ", ts: Date.now() };
+    localData.items[lid2] = presetItemsObj();
+    persistLocal();
+  }
+  lists = localData.lists;
+  currentListId = localData.current && lists[localData.current] ? localData.current : sortedLists()[0].id;
+  items = localData.items[currentListId] || {};
 }
+
+/* ===== 保存層（リスト／アイテム操作） ===== */
 function setConn(on, text) {
   connStatus.className = "conn" + (on ? " on" : "");
   connText.textContent = text;
 }
-function saveItem(id, data) {
-  if (localMode) { if (data === null) delete items[id]; else items[id] = data; persistLocal(); render(); }
-  else if (itemsRef) { if (data === null) itemsRef.child(id).remove(); else itemsRef.child(id).set(data); }
+function attachItems() {
+  if (localMode) { items = (localData.items[currentListId] = localData.items[currentListId] || {}); render(); return; }
+  if (itemsRef) itemsRef.off();
+  items = {};
+  if (!currentListId) { render(); return; }
+  itemsRef = listsRef.child(currentListId).child("items");
+  itemsRef.on("value", function (snap) {
+    items = snap.val() || {};
+    setConn(true, "同期中（家族と共有しています）");
+    render();
+  }, function (err) { setConn(false, "接続エラー：" + err.message); });
 }
-function updateItem(id, patch) {
-  if (localMode) { if (items[id]) { for (var k in patch) items[id][k] = patch[k]; persistLocal(); render(); } }
-  else if (itemsRef) { itemsRef.child(id).update(patch); }
+function switchList(id) {
+  if (!lists[id]) return;
+  currentListId = id;
+  pendingParentId = null;
+  childForm.classList.add("hidden");
+  if (localMode) { localData.current = id; persistLocal(); }
+  attachItems();
+  render();
+}
+function addList(name) {
+  if (localMode) {
+    var id = localId();
+    localData.lists[id] = { name: name, ts: Date.now() };
+    localData.items[id] = {};
+    lists = localData.lists;
+    persistLocal();
+    switchList(id);
+    return;
+  }
+  var ref = listsRef.push({ name: name, ts: Date.now() });
+  currentListId = ref.key;
+  attachItems();
+}
+function deleteCurrentList() {
+  if (sortedLists().length <= 1) { window.alert("最後の1つは削除できません。"); return; }
+  var name = lists[currentListId] ? lists[currentListId].name : "";
+  if (!window.confirm("リスト「" + name + "」を削除します。家族全員の画面からも消えます。よろしいですか？")) return;
+  var id = currentListId;
+  var rest = sortedLists().filter(function (l) { return l.id !== id; });
+  if (localMode) {
+    delete localData.lists[id];
+    delete localData.items[id];
+    lists = localData.lists;
+    persistLocal();
+    switchList(rest[0].id);
+    return;
+  }
+  listsRef.child(id).remove();
+  switchList(rest[0].id);
 }
 function pushItem(data) {
   if (localMode) {
-    var id = "local-" + Date.now() + "-" + Math.floor(Math.random() * 1e6);
-    items[id] = data; persistLocal(); render(); return id;
+    var id = localId();
+    items[id] = data;
+    persistLocal();
+    render();
+    return id;
   }
-  if (itemsRef) { return itemsRef.push(data).key; }
+  if (itemsRef) return itemsRef.push(data).key;
   return null;
 }
+function updateItems(patch) {
+  // patch: {itemId: {checked:...}} をまとめて反映
+  if (localMode) {
+    Object.keys(patch).forEach(function (id) { if (items[id]) { for (var k in patch[id]) items[id][k] = patch[id][k]; } });
+    persistLocal();
+    render();
+    return;
+  }
+  if (itemsRef) {
+    var upd = {};
+    Object.keys(patch).forEach(function (id) { upd[id + "/checked"] = patch[id].checked; });
+    itemsRef.update(upd);
+  }
+}
+function removeItems(ids) {
+  if (localMode) {
+    ids.forEach(function (id) { delete items[id]; });
+    persistLocal();
+    render();
+    return;
+  }
+  if (itemsRef) {
+    var upd = {};
+    ids.forEach(function (id) { upd[id] = null; });
+    itemsRef.update(upd);
+  }
+}
+function toggleItem(id, checked) {
+  var kids = childrenOf(id);
+  if (kids.length) {
+    var patch = {};
+    kids.forEach(function (k) { patch[k.id] = { checked: checked }; });
+    updateItems(patch);
+  } else {
+    var p = {}; p[id] = { checked: checked };
+    updateItems(p);
+  }
+}
 function addPresets() {
-  var existing = {};
-  Object.keys(items).forEach(function (id) { existing[items[id].name] = true; });
-  var ts = Date.now(), added = 0;
-  PRESETS.forEach(function (p, idx) {
-    if (existing[p[0]]) return;
-    pushItem({ name: p[0], cat: p[1], checked: false, ts: ts + idx });
-    added++;
+  var existingTop = {};
+  topItems().forEach(function (t) { existingTop[t.item.name] = true; });
+  var ts = Date.now();
+  PRESET_TREE.forEach(function (g, gi) {
+    if (existingTop[g.name]) return;
+    var pid = pushItem({ name: g.name, parentId: null, checked: false, ts: ts + gi * 1000 });
+    if (!pid) return;
+    g.children.forEach(function (name, i) {
+      pushItem({ name: name, parentId: pid, checked: false, ts: ts + gi * 1000 + i + 1 });
+    });
   });
-  return added;
 }
 
-/* ===== 部屋への入室 ===== */
-function enterRoom(code, isNew) {
-  roomCode = code;
-  try { localStorage.setItem(LS_ROOM, code); } catch (e) {}
-  roomGate.classList.add("hidden");
-  appMain.classList.remove("hidden");
-  items = {};
-  render();
+/* ===== Firebase移行（旧形式→リスト形式） ===== */
+function migrateFirebase(rootRef, oldItems) {
+  var listRef = rootRef.child("lists").push();
+  var listId = listRef.key;
+  var converted = {};
+  if (oldItems && Object.keys(oldItems).length) {
+    var byCat = {};
+    Object.keys(oldItems).forEach(function (id) {
+      var it = oldItems[id];
+      var cat = MIGRATION_CATS.indexOf(it.cat) >= 0 ? it.cat : "遊び・その他";
+      (byCat[cat] = byCat[cat] || []).push(it);
+    });
+    var ts = Date.now();
+    MIGRATION_CATS.forEach(function (cat, ci) {
+      var arr = byCat[cat];
+      if (!arr || !arr.length) return;
+      arr.sort(function (a, b) { return (a.ts || 0) - (b.ts || 0); });
+      var pid = rootRef.child("lists").child(listId).child("items").push().key;
+      converted[pid] = { name: cat, parentId: null, checked: false, ts: ts + ci * 1000 };
+      arr.forEach(function (it, i) {
+        var cid = rootRef.child("lists").child(listId).child("items").push().key;
+        converted[cid] = { name: it.name, parentId: pid, checked: !!it.checked, ts: ts + ci * 1000 + i + 1 };
+      });
+    });
+  } else {
+    var tmp = presetItemsObj();
+    Object.keys(tmp).forEach(function (k) { converted[k] = tmp[k]; });
+  }
+  var upd = {};
+  upd["lists/" + listId] = { name: "キャンプ", ts: Date.now() };
+  upd["lists/" + listId + "/items"] = converted;
+  upd["items"] = null;
+  return rootRef.update(upd);
+}
 
+/* ===== 入室 ===== */
+function enterRoom(code) {
+  roomCode = code;
   localMode = !(CONFIG_READY && typeof firebase !== "undefined");
   if (localMode) {
     setConn(false, "ローカルモード（この端末内だけ・同期しません）");
     loadLocal();
     render();
-    if (isNew && !Object.keys(items).length) addPresets();
     return;
   }
   if (!db) { firebase.initializeApp(FIREBASE_CONFIG); db = firebase.database(); }
-  itemsRef = db.ref("rooms/" + code + "/items");
-  itemsRef.on("value", function (snap) {
-    items = snap.val() || {};
-    setConn(true, "同期中（家族と共有しています）");
-    render();
-  }, function (err) {
-    setConn(false, "接続エラー：" + err.message);
-  });
-  if (isNew) {
-    itemsRef.once("value").then(function (snap) {
-      if (!snap.val()) addPresets();
+  var rootRef = db.ref("rooms/" + code);
+  listsRef = rootRef.child("lists");
+  rootRef.once("value").then(function (snap) {
+    var val = snap.val() || {};
+    var p = val.lists ? Promise.resolve() : migrateFirebase(rootRef, val.items || {});
+    return p;
+  }).then(function () {
+    listsRef.on("value", function (snap) {
+      lists = snap.val() || {};
+      if (!currentListId || !lists[currentListId]) {
+        var sl = sortedLists();
+        currentListId = sl.length ? sl[0].id : null;
+        attachItems();
+      }
+      render();
+    }, function (err) { setConn(false, "接続エラー：" + err.message); });
+  }).catch(function () {
+    listsRef.on("value", function (snap) {
+      lists = snap.val() || {};
+      if (!currentListId || !lists[currentListId]) {
+        var sl = sortedLists();
+        currentListId = sl.length ? sl[0].id : null;
+        attachItems();
+      }
+      render();
     });
-  }
+  });
 }
 
-
 /* ===== イベント ===== */
-$("joinRoomBtn").addEventListener("click", function () {
-  var code = roomCodeInput.value.trim();
-  if (!validRoomCode(code)) { gateMsg.textContent = "合言葉は半角英数字・ハイフン・アンダーバーで3〜32文字にしてください。"; return; }
-  gateMsg.textContent = "";
-  enterRoom(code, false);
-});
-$("createRoomBtn").addEventListener("click", function () {
-  gateMsg.textContent = "";
-  enterRoom(genRoomCode(), true);
-});
-roomCodeInput.addEventListener("keydown", function (e) { if (e.key === "Enter") $("joinRoomBtn").click(); });
 $("shareBtn").addEventListener("click", function () {
   var url = location.origin + location.pathname;
-  var text = "キャンプ持ち物チェック\n" + url;
+  var text = "持ち物チェック\n" + url;
   function done() { $("shareBtn").textContent = "コピーしました ✓"; setTimeout(function () { $("shareBtn").textContent = "共有リンクをコピー"; }, 2000); }
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(done, function () { window.prompt("このリンクを家族に送ってください", url); });
@@ -323,41 +505,79 @@ $("addBtn").addEventListener("click", function () {
   var name = addName.value.trim();
   if (!name) { addMsg.textContent = "アイテム名を入力してください。"; return; }
   addMsg.textContent = "";
-  pushItem({ name: name, cat: addCat.value, checked: false, ts: Date.now() });
+  pushItem({ name: name, parentId: null, checked: false, ts: Date.now() });
   addName.value = "";
   addName.focus();
 });
 addName.addEventListener("keydown", function (e) { if (e.key === "Enter") $("addBtn").click(); });
+$("childConfirmBtn").addEventListener("click", function () {
+  var name = childName.value.trim();
+  if (!name || !pendingParentId) return;
+  pushItem({ name: name, parentId: pendingParentId, checked: false, ts: Date.now() });
+  childName.value = "";
+  childForm.classList.add("hidden");
+  pendingParentId = null;
+});
+$("childCancelBtn").addEventListener("click", function () {
+  childForm.classList.add("hidden");
+  pendingParentId = null;
+  childName.value = "";
+});
+childName.addEventListener("keydown", function (e) { if (e.key === "Enter") $("childConfirmBtn").click(); });
+listChips.addEventListener("click", function (e) {
+  var t = e.target;
+  if (t.id === "addListBtn") {
+    var name = window.prompt("新しいリストの名前を入力してください（例： 買い物、旅行）", "");
+    if (name && name.trim()) addList(name.trim());
+    return;
+  }
+  var lid = t.getAttribute && t.getAttribute("data-list");
+  if (lid) switchList(lid);
+});
 listWrap.addEventListener("click", function (e) {
   var t = e.target;
   var act = t.getAttribute && t.getAttribute("data-act");
   if (!act) return;
   var id = t.getAttribute("data-id");
-  if (act === "del") { saveItem(id, null); }
+  if (act === "del") {
+    var kids = childrenOf(id);
+    if (kids.length) {
+      if (!window.confirm("「" + items[id].name + "」とその子アイテム" + kids.length + "件を削除します。よろしいですか？")) return;
+      removeItems([id].concat(kids.map(function (k) { return k.id; })));
+    } else {
+      removeItems([id]);
+    }
+  } else if (act === "addchild") {
+    pendingParentId = id;
+    childFormParentName.textContent = items[id] ? items[id].name : "";
+    childForm.classList.remove("hidden");
+    childName.focus();
+  }
 });
 listWrap.addEventListener("change", function (e) {
   var t = e.target;
   if (t.getAttribute && t.getAttribute("data-act") === "toggle") {
-    updateItem(t.getAttribute("data-id"), { checked: t.checked });
+    toggleItem(t.getAttribute("data-id"), t.checked);
   }
 });
 $("resetChecksBtn").addEventListener("click", function () {
-  Object.keys(items).forEach(function (id) { if (items[id].checked) updateItem(id, { checked: false }); });
+  var patch = {};
+  leaves().forEach(function (x) { if (x.item.checked) patch[x.id] = { checked: false }; });
+  if (Object.keys(patch).length) updateItems(patch);
 });
 $("addPresetBtn").addEventListener("click", function () { addPresets(); });
 $("clearAllBtn").addEventListener("click", function () {
-  if (!window.confirm("リストを空にします。家族全員の画面からも消えます。よろしいですか？")) return;
-  if (localMode) { items = {}; persistLocal(); render(); }
+  if (!window.confirm("今開いているリストのアイテムをすべて削除します。家族全員の画面からも消えます。よろしいですか？")) return;
+  if (localMode) { localData.items[currentListId] = {}; items = localData.items[currentListId]; persistLocal(); render(); }
   else if (itemsRef) { itemsRef.remove(); }
 });
+$("deleteListBtn").addEventListener("click", deleteCurrentList);
 
 /* ===== 起動： 家族のリストに自動入室（合言葉なし） ===== */
-var DEFAULT_ROOM = "camp-vv2ru9wh";
 (function init() {
   var m = /[?&]room=([^&]+)/.exec(location.search || "");
   var code = m ? decodeURIComponent(m[1]) : DEFAULT_ROOM;
-  if (code && validRoomCode(code)) enterRoom(code, false);
-  else enterRoom(DEFAULT_ROOM, false);
+  enterRoom(validRoomCode(code) ? code : DEFAULT_ROOM);
 })();
 </script>
 </body>
