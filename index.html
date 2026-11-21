@@ -536,9 +536,13 @@ function isInteractiveTarget(t) {
 function rowFromTarget(t) {
   return t.closest ? t.closest("li[data-id]") : null;
 }
+function layoutTopOf(el) {
+  // transformの影響を受けないレイアウト上の上端（viewport座標）
+  var ul = drag ? drag.ul : el.parentElement;
+  return ul.getBoundingClientRect().top + (el.offsetTop - ul.offsetTop);
+}
 function beginDrag(li, clientY) {
   var block = rowBlock(li);
-  var firstRect = li.getBoundingClientRect();
   drag = {
     id: li.getAttribute("data-id"),
     isChild: li.classList.contains("child-row"),
@@ -546,18 +550,33 @@ function beginDrag(li, clientY) {
     block: block,
     ul: li.parentElement,
     startY: clientY,
-    startTop: firstRect.top,
-    layoutTop: firstRect.top,
+    lastY: clientY,
+    startTop: 0,
+    layoutTop: 0,
     dy: 0,
     dropParentId: null,
-    moved: false
+    moved: false,
+    raf: 0
   };
+  drag.startTop = layoutTopOf(li);
+  drag.layoutTop = drag.startTop;
   block.forEach(function (el) {
     el.classList.add("drag-lift");
     el.style.position = "relative";
     el.style.zIndex = "5";
   });
   if (navigator.vibrate) { try { navigator.vibrate(10); } catch (e) {} }
+  drag.raf = requestAnimationFrame(dragTick);
+}
+function dragTick() {
+  if (!drag) return;
+  var mr = mainScroll.getBoundingClientRect();
+  var y = drag.lastY;
+  var scrolled = false;
+  if (y < mr.top + 56) { mainScroll.scrollTop -= 14; scrolled = true; }
+  else if (y > mr.bottom - 56) { mainScroll.scrollTop += 14; scrolled = true; }
+  if (scrolled) dragMoveTo(y);
+  drag.raf = requestAnimationFrame(dragTick);
 }
 function setDragTransform() {
   if (!drag) return;
@@ -587,9 +606,7 @@ function flipAnimate(ul, mutate) {
 function dragMoveTo(clientY) {
   if (!drag) return;
   drag.moved = true;
-  var mr = mainScroll.getBoundingClientRect();
-  if (clientY < mr.top + 56) mainScroll.scrollTop -= 12;
-  else if (clientY > mr.bottom - 56) mainScroll.scrollTop += 12;
+  drag.lastY = clientY;
   var desired = drag.startTop + (clientY - drag.startY);
   drag.dy = desired - drag.layoutTop;
   setDragTransform();
@@ -602,8 +619,8 @@ function dragMoveTo(clientY) {
       if (r.classList.contains("child-row") || drag.block.indexOf(r) >= 0) continue;
       var pid = r.getAttribute("data-id");
       if (!pid || pid === drag.parentId) continue;
-      var rect = r.getBoundingClientRect();
-      if (clientY >= rect.top && clientY <= rect.bottom) {
+      var rTop = layoutTopOf(r);
+      if (clientY >= rTop && clientY <= rTop + r.offsetHeight) {
         drag.dropParentId = pid;
         r.classList.add("drop-target");
         return;
@@ -620,8 +637,7 @@ function dragMoveTo(clientY) {
     } else {
       if (row.classList.contains("child-row")) continue;
     }
-    var rc = row.getBoundingClientRect();
-    var mid = rc.top + rc.height / 2;
+    var mid = layoutTopOf(row) + row.offsetHeight / 2;
     if (clientY < mid) { target = row; before = true; break; }
     target = row; before = false;
   }
@@ -639,8 +655,7 @@ function dragMoveTo(clientY) {
     insertion = function () { drag.block.forEach(function (el) { drag.ul.insertBefore(el, ref); }); };
   }
   flipAnimate(drag.ul, insertion);
-  drag.block.forEach(function (el) { el.style.transform = ""; });
-  drag.layoutTop = drag.block[0].getBoundingClientRect().top;
+  drag.layoutTop = layoutTopOf(drag.block[0]);
   drag.dy = desired - drag.layoutTop;
   setDragTransform();
 }
@@ -648,6 +663,7 @@ function endDrag() {
   if (!drag) return;
   var ds = drag;
   drag = null;
+  if (ds.raf) cancelAnimationFrame(ds.raf);
   clearDropMarks();
   var finish = function () {
     ds.block.forEach(function (el) {
